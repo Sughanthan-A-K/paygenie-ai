@@ -149,10 +149,10 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading}
-            className="cursor-pointer pp-button-secondary text-xs py-2 px-4"
+            className="cursor-pointer pp-button-secondary text-xs"
           >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            {isDownloading ? 'Exporting PDF...' : 'Download PDF Invoice'}
+            <Download className="w-4 h-4" />
+            <span>{isDownloading ? 'Exporting PDF...' : 'Download PDF Invoice'}</span>
           </button>
         </div>
 
@@ -311,10 +311,10 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
 
             <button
               onClick={handleCopyEmail}
-              className="cursor-pointer pp-button-secondary text-xs py-1.5 px-4"
+              className="cursor-pointer pp-button-secondary text-xs"
             >
-              {copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-              {copied ? 'Copied' : 'Copy Email'}
+              {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              <span>{copied ? 'Copied' : 'Copy Email'}</span>
             </button>
           </div>
 

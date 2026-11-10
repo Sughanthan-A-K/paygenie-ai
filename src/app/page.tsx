@@ -213,13 +213,13 @@ export default function Home() {
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin mr-2" />
-                      Parsing with Gemini AI...
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Parsing with Gemini AI...</span>
                     </>
                   ) : (
                     <>
-                      Generate & Checkout
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      <span>Generate & Checkout</span>
+                      <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
