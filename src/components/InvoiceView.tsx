@@ -12,15 +12,19 @@ import {
   Send,
   Calendar,
   Printer,
-  Sparkles,
 } from 'lucide-react';
 
 interface InvoiceViewProps {
   invoice: InvoiceData;
   onPaymentSuccess: (paymentId: string) => void;
+  onPaymentError?: (msg: string) => void;
 }
 
-export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewProps) {
+export default function InvoiceView({
+  invoice,
+  onPaymentSuccess,
+  onPaymentError,
+}: InvoiceViewProps) {
   const [copied, setCopied] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [emailTone, setEmailTone] = useState<'friendly' | 'formal' | 'urgent'>('friendly');
@@ -78,7 +82,8 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
 
         <button
           onClick={handlePrintDownload}
-          className="pp-btn-pill-secondary !py-2 !px-4 !text-xs !min-w-0 flex items-center gap-2"
+          className="pp-btn-pill-secondary !py-2 !px-4 !text-xs !min-w-0 flex items-center gap-2 cursor-pointer hover:bg-slate-50 transition"
+          title="Print or Save Invoice PDF"
         >
           <Printer className="w-3.5 h-3.5" />
           <span>Print / PDF</span>
@@ -101,7 +106,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
               <span className="font-mono text-xs font-bold text-[#003087] bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                 {invoice.invoiceNumber}
               </span>
-              <span className="text-xs font-semibold text-slate-500">Official Bill</span>
+              <span className="text-xs font-semibold text-slate-500">Official Merchant Invoice</span>
             </div>
             <h2 className="text-3xl font-extrabold text-[#001435] tracking-tight">
               Invoice for {invoice.clientName}
@@ -234,12 +239,6 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                 </p>
               </div>
 
-              {paymentError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs text-center">
-                  {paymentError}
-                </div>
-              )}
-
               <div className="max-w-md mx-auto relative z-10">
                 <PayPalButtons
                   style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 48 }}
@@ -261,6 +260,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                       return data.orderId;
                     } catch (err: any) {
                       setPaymentError(err.message);
+                      if (onPaymentError) onPaymentError(err.message);
                       throw err;
                     }
                   }}
@@ -278,11 +278,12 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                       onPaymentSuccess(captureData.captureId || data.orderID);
                     } catch (err: any) {
                       setPaymentError(err.message);
+                      if (onPaymentError) onPaymentError(err.message);
                     }
                   }}
                   onError={(err) => {
-                    console.error('PayPal Checkout error:', err);
-                    setPaymentError('PayPal Checkout encountered an issue.');
+                    // When user clicks cancel in the popup, ignore the cancel event quietly
+                    console.log('PayPal Checkout window closed or cancelled:', err);
                   }}
                 />
               </div>
@@ -332,7 +333,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
               </p>
               <button
                 onClick={handleCopyEmail}
-                className="pp-btn-pill-primary !py-1.5 !px-3.5 !text-xs !min-w-0 flex items-center gap-1.5"
+                className="pp-btn-pill-primary !py-1.5 !px-3.5 !text-xs !min-w-0 flex items-center gap-1.5 cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied' : 'Copy Email'}</span>
