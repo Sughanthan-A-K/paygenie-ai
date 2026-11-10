@@ -1,12 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #090d16;
-  --surface: #101726;
-  --surface-hover: #151e32;
-  --border: #1f2a40;
-  --text-main: #f1f5f9;
-  --text-muted: #94a3b8;
+  --bg: #0b0f19;
+  --surface: #111827;
+  --surface-hover: #1f2937;
+  --border: rgba(255, 255, 255, 0.08);
+  --text-main: #f9fafb;
+  --text-muted: #9ca3af;
   --pp-navy: #003087;
   --pp-blue: #0070ba;
   --pp-accent: #38bdf8;
@@ -23,13 +23,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle fintech grid background */
+/* Clean minimal background - no harsh patterns */
 .fintech-grid {
-  background-image: 
-    radial-gradient(circle at 50% 0%, rgba(0, 112, 186, 0.15) 0%, transparent 60%),
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 100% 100%, 32px 32px, 32px 32px;
+  background-color: #0b0f19;
+}
+
+/* PayPal Button Container Reset to avoid harsh blue outline halos */
+iframe[name^="__zoid__paypal_buttons__"] {
+  border-radius: 9999px !important;
+  outline: none !important;
+}
+
+div:has(> iframe[name^="__zoid__paypal_buttons__"]) {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Precision Action Button */

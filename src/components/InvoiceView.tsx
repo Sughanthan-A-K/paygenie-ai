@@ -234,9 +234,9 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                 </div>
               )}
 
-              <div className="max-w-sm mx-auto relative z-10 cursor-pointer">
+              <div className="max-w-sm mx-auto relative z-10">
                 <PayPalButtons
-                  style={{ layout: 'vertical', shape: 'rect', label: 'pay', height: 44 }}
+                  style={{ layout: 'vertical', shape: 'pill', label: 'paypal', height: 48, color: 'gold' }}
                   createOrder={async () => {
                     setPaymentError(null);
                     try {
