@@ -2,22 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Sparkles, 
   ArrowRight, 
   RefreshCw, 
   ShieldCheck, 
   CheckCircle2, 
-  History, 
   Layers, 
   Moon, 
   Sun,
   Lock,
   Zap,
-  Globe2,
   FileSpreadsheet,
-  ChevronRight,
-  TrendingUp,
-  Receipt
+  Receipt,
+  Sparkles
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import { InvoiceData } from '@/types/invoice';
@@ -47,7 +43,6 @@ export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check initial dark mode preference
     if (document.documentElement.classList.contains('dark')) {
       setIsDarkMode(true);
     }
@@ -85,6 +80,11 @@ export default function Home() {
       setInvoice(data.invoice);
       setHistory((prev) => [data.invoice, ...prev]);
       setActiveTab('create');
+
+      setTimeout(() => {
+        const el = document.getElementById('generated-invoice-container');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
     } finally {
@@ -110,9 +110,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-200">
-      {/* PayPal Style Top Navigation Bar */}
+      {/* Official Enterprise PayPal Navigation Bar */}
       <header className="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3">
@@ -129,13 +129,13 @@ export default function Home() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-                Autonomous Commerce & Instant Settle
+                Autonomous Billing & Instant Settlement
               </p>
             </div>
           </div>
 
-          {/* Segmented Control Navigation Tabs (PayPal Style) */}
-          <div className="pp-tab-group hidden md:inline-flex">
+          {/* Real Functional Navigation Tabs */}
+          <div className="pp-tab-group hidden sm:inline-flex">
             <button
               onClick={() => setActiveTab('create')}
               className={`pp-tab-btn cursor-pointer ${activeTab === 'create' ? 'pp-tab-btn-active' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}
@@ -150,7 +150,7 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Right Header Action Controls */}
+          {/* Controls: Theme & Verification status */}
           <div className="flex items-center gap-3">
             <button
               onClick={toggleDarkMode}
@@ -168,11 +168,11 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+      {/* Main App Container */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12">
         
-        {/* Mobile Tab Control */}
-        <div className="flex md:hidden justify-center mb-8">
+        {/* Mobile Tab Slider */}
+        <div className="flex sm:hidden justify-center mb-6">
           <div className="pp-tab-group">
             <button
               onClick={() => setActiveTab('create')}
@@ -191,35 +191,40 @@ export default function Home() {
 
         {activeTab === 'create' ? (
           <div>
-            {/* PayPal Quantum Leap Hero Section */}
-            <section className="mb-14 text-center max-w-4xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#003087]/10 dark:bg-blue-500/20 text-[#003087] dark:text-blue-300 text-xs font-bold uppercase tracking-wider mb-5">
-                <Zap className="w-4 h-4 text-[#0070ba]" />
-                Next-Gen Agentic Invoicing
+            {/* Clean Hero Headline */}
+            <section className="mb-10 text-center max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#003087]/10 dark:bg-blue-500/20 text-[#003087] dark:text-blue-300 text-xs font-bold uppercase tracking-wider mb-4">
+                <Zap className="w-3.5 h-3.5 text-[#0070ba]" />
+                Agentic Invoice Intelligence
               </div>
 
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-[#001435] dark:text-white leading-[1.15]">
+              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-[#001435] dark:text-white leading-tight">
                 There’s a faster way to <br className="hidden sm:inline" />
                 <em className="italic font-serif text-[#003087] dark:text-blue-400">bill and get paid</em> with PayPal.
               </h1>
 
-              <p className="mt-5 text-slate-600 dark:text-slate-300 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-                Describe your project or sales in conversational language. Gemini AI parses line items, calculates discounts & taxes, and serves an immediate PayPal checkout button.
+              <p className="mt-3 text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+                Describe any project, sale, or hourly work naturally. Gemini AI structures line items, calculates discounts & taxes, and provides an instant PayPal checkout button.
               </p>
             </section>
 
-            {/* Input Card — Clean Slate Plate Style */}
-            <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl mb-14">
-              <label htmlFor="prompt-input" className="block text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2.5">
-                Describe Job Or Client Purchase
-              </label>
+            {/* Input Card — Clean PayPal Slate Plate */}
+            <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl mb-12">
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="prompt-input" className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Describe Job Or Client Purchase
+                </label>
+                <span className="text-[11px] font-semibold text-[#0070ba] dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-blue-100 dark:border-blue-800">
+                  <Sparkles className="w-3 h-3" /> Gemini 3.5 Flash
+                </span>
+              </div>
               
               <textarea
                 id="prompt-input"
                 rows={3}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. Billed Sarah Connor $500 for custom Webflow site + 3 revisions, apply 10% discount and make due in 7 days..."
+                placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0070ba] transition"
               />
 
@@ -276,9 +281,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Live Generated Invoice Section */}
+            {/* Live Generated Invoice Container */}
             {invoice && (
-              <div className="max-w-4xl mx-auto mb-16 animate-fade-in">
+              <div id="generated-invoice-container" className="max-w-3xl mx-auto mb-16 animate-fade-in scroll-mt-24">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-[#001435] dark:text-white flex items-center gap-2">
                     <Receipt className="w-6 h-6 text-[#003087] dark:text-blue-400" />
@@ -291,7 +296,7 @@ export default function Home() {
           </div>
         ) : (
           /* Merchant Ledger View */
-          <div className="max-w-5xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl">
+          <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h2 className="text-2xl font-black text-[#001435] dark:text-white">
@@ -302,16 +307,14 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Collected</span>
-                  <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
-                    ${history
-                      .filter(i => i.status === 'PAID')
-                      .reduce((sum, i) => sum + i.totalAmount, 0)
-                      .toFixed(2)}
-                  </span>
-                </div>
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Collected</span>
+                <span className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  ${history
+                    .filter(i => i.status === 'PAID')
+                    .reduce((sum, i) => sum + i.totalAmount, 0)
+                    .toFixed(2)}
+                </span>
               </div>
             </div>
 
@@ -369,7 +372,10 @@ export default function Home() {
                             onClick={() => {
                               setInvoice(inv);
                               setActiveTab('create');
-                              window.scrollTo({ top: 380, behavior: 'smooth' });
+                              setTimeout(() => {
+                                const el = document.getElementById('generated-invoice-container');
+                                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                              }, 100);
                             }}
                             className="cursor-pointer text-xs font-bold text-[#0070ba] hover:underline"
                           >
@@ -386,9 +392,9 @@ export default function Home() {
         )}
       </main>
 
-      {/* Official PayPal-Style Footer */}
+      {/* Clean Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-8 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="font-extrabold text-slate-900 dark:text-white">PayGenie AI</span>
             <span>•</span>
