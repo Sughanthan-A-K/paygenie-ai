@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { PayPalProvider } from "@/components/PayPalProvider";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "PayGenie AI — Intelligent Invoicing & Instant PayPal Settlement",
+  title: "PayGenie — Intelligent Invoicing & Instant PayPal Settlement",
   description: "Generate structured, ready-to-pay invoices from natural language using Gemini AI and settle instantly via PayPal Sandbox.",
 };
 
@@ -13,10 +14,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-slate-950 text-slate-100 min-h-screen selection:bg-blue-600 selection:text-white">
+    <html lang="en">
+      <body className="bg-white text-[#001435] min-h-screen selection:bg-[#0070ba] selection:text-white antialiased">
         <PayPalProvider>
           {children}
+          <Toaster position="top-right" richColors />
         </PayPalProvider>
       </body>
     </html>

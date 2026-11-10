@@ -13,7 +13,7 @@ export function PayPalProvider({ children }: { children: React.ReactNode }) {
         intent: 'capture',
         components: 'buttons',
         enableFunding: 'card',
-        dataSdkIntegrationSource: 'react-paypal-js',
+        disableFunding: 'credit',
       }}
     >
       {children}

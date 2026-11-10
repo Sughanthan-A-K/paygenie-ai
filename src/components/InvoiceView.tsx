@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { toast } from 'sonner';
 
 interface InvoiceViewProps {
   invoice: InvoiceData;
@@ -29,13 +30,13 @@ interface InvoiceViewProps {
 export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewProps) {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
   const invoicePrintRef = useRef<HTMLDivElement>(null);
 
   const handleCopyEmail = () => {
     if (invoice.emailDraft) {
       navigator.clipboard.writeText(`Subject: ${invoice.emailDraft.subject}\n\n${invoice.emailDraft.body}`);
       setCopied(true);
+      toast.success('Email copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -43,6 +44,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
   const handleDownloadPDF = async () => {
     if (!invoicePrintRef.current) return;
     setIsDownloading(true);
+    toast.info('Generating high-resolution PDF...');
     try {
       const canvas = await html2canvas(invoicePrintRef.current, {
         scale: 2,
@@ -55,8 +57,10 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${invoice.invoiceNumber}.pdf`);
+      toast.success('PDF downloaded successfully!');
     } catch (e) {
       console.error('PDF export failed:', e);
+      toast.error('Failed to export PDF');
     } finally {
       setIsDownloading(false);
     }
@@ -239,17 +243,10 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
           </div>
         ) : (
           <div className="max-w-md mx-auto text-center">
-            {paymentError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs">
-                {paymentError}
-              </div>
-            )}
-
-            <div className="relative z-10 cursor-pointer">
+            <div className="relative z-10 overflow-hidden rounded-full p-0.5">
               <PayPalButtons
                 style={{ layout: 'vertical', shape: 'pill', label: 'paypal', height: 48, color: 'gold' }}
                 createOrder={async () => {
-                  setPaymentError(null);
                   try {
                     const res = await fetch('/api/paypal/create-order', {
                       method: 'POST',
@@ -265,7 +262,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                     if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
                     return data.orderId;
                   } catch (err: any) {
-                    setPaymentError(err.message);
+                    toast.error(err.message || 'PayPal Checkout encountered an issue.');
                     throw err;
                   }
                 }}
@@ -280,14 +277,15 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
                     if (!res.ok) throw new Error(captureData.error || 'Failed to capture payment');
 
                     fireSuccessCelebration();
+                    toast.success('Payment captured successfully via PayPal!');
                     onPaymentSuccess(captureData.captureId || data.orderID);
                   } catch (err: any) {
-                    setPaymentError(err.message);
+                    toast.error(err.message || 'Failed to capture payment');
                   }
                 }}
                 onError={(err) => {
                   console.error('PayPal Checkout error:', err);
-                  setPaymentError('PayPal Checkout encountered an issue.');
+                  toast.error('PayPal Checkout encountered an issue or was closed.');
                 }}
               />
             </div>
