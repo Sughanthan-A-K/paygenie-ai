@@ -39,70 +39,89 @@ Ensure you:
 Currency must default to "USD" unless specified.
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            invoiceNumber: { type: Type.STRING },
-            date: { type: Type.STRING },
-            dueDate: { type: Type.STRING },
-            sellerName: { type: Type.STRING },
-            sellerEmail: { type: Type.STRING },
-            clientName: { type: Type.STRING },
-            clientEmail: { type: Type.STRING },
-            currency: { type: Type.STRING },
-            items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  quantity: { type: Type.NUMBER },
-                  unitPrice: { type: Type.NUMBER },
-                  total: { type: Type.NUMBER },
-                },
-                required: ['id', 'description', 'quantity', 'unitPrice', 'total'],
-              },
-            },
-            subtotal: { type: Type.NUMBER },
-            discountPercentage: { type: Type.NUMBER },
-            discountAmount: { type: Type.NUMBER },
-            taxPercentage: { type: Type.NUMBER },
-            taxAmount: { type: Type.NUMBER },
-            totalAmount: { type: Type.NUMBER },
-            notes: { type: Type.STRING },
-            emailDraft: {
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemma-4-31b-it'];
+    let lastError: any = null;
+    let responseText: string | null = null;
+
+    for (const model of modelsToTry) {
+      try {
+        const result = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: {
               type: Type.OBJECT,
               properties: {
-                subject: { type: Type.STRING },
-                body: { type: Type.STRING },
+                invoiceNumber: { type: Type.STRING },
+                date: { type: Type.STRING },
+                dueDate: { type: Type.STRING },
+                sellerName: { type: Type.STRING },
+                sellerEmail: { type: Type.STRING },
+                clientName: { type: Type.STRING },
+                clientEmail: { type: Type.STRING },
+                currency: { type: Type.STRING },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      id: { type: Type.STRING },
+                      description: { type: Type.STRING },
+                      quantity: { type: Type.NUMBER },
+                      unitPrice: { type: Type.NUMBER },
+                      total: { type: Type.NUMBER },
+                    },
+                    required: ['id', 'description', 'quantity', 'unitPrice', 'total'],
+                  },
+                },
+                subtotal: { type: Type.NUMBER },
+                discountPercentage: { type: Type.NUMBER },
+                discountAmount: { type: Type.NUMBER },
+                taxPercentage: { type: Type.NUMBER },
+                taxAmount: { type: Type.NUMBER },
+                totalAmount: { type: Type.NUMBER },
+                notes: { type: Type.STRING },
+                emailDraft: {
+                  type: Type.OBJECT,
+                  properties: {
+                    subject: { type: Type.STRING },
+                    body: { type: Type.STRING },
+                  },
+                  required: ['subject', 'body'],
+                },
               },
-              required: ['subject', 'body'],
+              required: [
+                'invoiceNumber',
+                'date',
+                'dueDate',
+                'sellerName',
+                'clientName',
+                'items',
+                'currency',
+                'subtotal',
+                'totalAmount',
+                'emailDraft',
+              ],
             },
           },
-          required: [
-            'invoiceNumber',
-            'date',
-            'dueDate',
-            'sellerName',
-            'clientName',
-            'items',
-            'currency',
-            'subtotal',
-            'totalAmount',
-            'emailDraft',
-          ],
-        },
-      },
-    });
+        });
+        if (result.text) {
+          responseText = result.text;
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${model} failed, trying next:`, err?.message);
+      }
+    }
 
-    const invoiceJson = JSON.parse(response.text || '{}');
+    if (!responseText) {
+      throw lastError || new Error('All Gemini model endpoints busy');
+    }
+
+    const invoiceJson = JSON.parse(responseText);
     invoiceJson.status = 'PENDING';
 
     return NextResponse.json({ invoice: invoiceJson });
