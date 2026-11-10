@@ -15,7 +15,8 @@ import {
   ShieldCheck, 
   Receipt,
   Sparkles,
-  ArrowRight
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -46,7 +47,7 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
       const canvas = await html2canvas(invoicePrintRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: '#0e131f',
+        backgroundColor: '#ffffff',
       });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -70,109 +71,109 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
   };
 
   return (
-    <div className="space-y-6">
-      {/* Impeccable High-Craft Invoice Panel */}
+    <div className="space-y-8">
+      {/* Printable Invoice Card in Pure PayPal White */}
       <div
         ref={invoicePrintRef}
-        className="glass-panel rounded-3xl p-6 sm:p-9 relative overflow-hidden"
+        className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-sm relative overflow-hidden text-[#001435]"
       >
-        {/* Subtle Top Specular Line */}
-        <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-[#38bdf8]/40 to-transparent" />
+        {/* Subtle Navy Top Accent */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
 
-        {/* Invoice Title & Meta Bar */}
-        <div className="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-white/[0.08]">
+        {/* Invoice Title & Status Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-100">
           <div>
-            <div className="flex items-center gap-2.5">
-              <span className="font-mono text-xs font-bold px-3 py-1 rounded-full bg-[#0070ba]/20 text-[#38bdf8] border border-[#0070ba]/40">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-[#003087] border border-slate-200">
                 {invoice.invoiceNumber}
               </span>
               {invoice.status === 'PAID' ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Settled via PayPal
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> PAID VIA PAYPAL
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" /> Payment Awaiting
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  <AlertCircle className="w-3.5 h-3.5" /> PAYMENT PENDING
                 </span>
               )}
             </div>
-            <h3 className="text-xl sm:text-2xl font-black text-white mt-3 tracking-tight">
-              {invoice.clientName}
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#001435] mt-3 tracking-tight">
+              Invoice for <em className="italic text-[#003087]">{invoice.clientName}</em>
             </h3>
           </div>
 
-          <div className="text-right">
-            <span className="text-xs uppercase tracking-wider text-slate-400 font-bold block">
-              Total Amount
+          <div className="sm:text-right bg-[#f5f7fa] p-4 sm:p-5 rounded-2xl min-w-[180px]">
+            <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block">
+              Total Balance
             </span>
-            <div className="text-3xl font-mono font-extrabold text-white mt-0.5 tracking-tight">
-              ${invoice.totalAmount.toFixed(2)}{' '}
-              <span className="text-xs font-sans text-slate-400 font-semibold">
+            <div className="text-3xl font-black text-[#003087] mt-1 tracking-tight">
+              ${invoice.totalAmount.toFixed(2)}
+              <span className="text-xs font-normal text-slate-500 ml-1">
                 {invoice.currency || 'USD'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Counterparty Metadata Plate */}
+        {/* Counterparty Information */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6 text-xs">
-          <div className="p-4 rounded-2xl bg-black/30 border border-white/[0.06]">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-400 block mb-1">
-              Billed From
+          <div className="p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80">
+            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+              Billed From (Merchant)
             </span>
-            <p className="font-bold text-white text-sm">{invoice.sellerName}</p>
-            <p className="text-slate-300 mt-0.5">{invoice.sellerEmail || 'billing@merchant.com'}</p>
+            <p className="font-bold text-[#001435] text-sm">{invoice.sellerName}</p>
+            <p className="text-slate-500 mt-0.5">{invoice.sellerEmail || 'billing@merchant.com'}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-black/30 border border-white/[0.06]">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-400 block mb-1">
-              Billed To
+          <div className="p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80">
+            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+              Billed To (Customer)
             </span>
-            <p className="font-bold text-white text-sm">{invoice.clientName}</p>
-            <p className="text-slate-300 mt-0.5">{invoice.clientEmail}</p>
+            <p className="font-bold text-[#001435] text-sm">{invoice.clientName}</p>
+            <p className="text-slate-500 mt-0.5">{invoice.clientEmail}</p>
           </div>
         </div>
 
-        {/* Date Row + PDF Download */}
-        <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-300 mb-6 pb-6 border-b border-white/[0.08]">
-          <div className="flex items-center gap-5">
+        {/* Timeline & Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600 mb-6 pb-6 border-b border-slate-100">
+          <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-[#38bdf8]" />
-              <span>Issue Date: <strong className="text-white">{invoice.date}</strong></span>
+              <Calendar className="w-4 h-4 text-[#0070ba]" />
+              <span>Issue Date: <strong className="text-[#001435]">{invoice.date}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-[#38bdf8]" />
-              <span>Due: <strong className="text-white">{invoice.dueDate}</strong></span>
+              <Calendar className="w-4 h-4 text-[#0070ba]" />
+              <span>Due: <strong className="text-[#001435]">{invoice.dueDate}</strong></span>
             </div>
           </div>
 
           <button
             onClick={handleDownloadPDF}
             disabled={isDownloading}
-            className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-white/10 hover:bg-white/15 px-4 py-2 rounded-xl border border-white/10 shadow-sm transition"
+            className="cursor-pointer pp-button-secondary text-xs py-2 px-4"
           >
-            <Download className="w-3.5 h-3.5 text-[#38bdf8]" />
-            {isDownloading ? 'Exporting PDF...' : 'Download PDF'}
+            <Download className="w-3.5 h-3.5 mr-1" />
+            {isDownloading ? 'Exporting PDF...' : 'Download PDF Invoice'}
           </button>
         </div>
 
-        {/* Itemized Breakdown Table */}
+        {/* Itemized Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-white/[0.08] text-slate-400 uppercase tracking-wider text-[11px]">
-                <th className="py-3 px-1 font-bold">Line Item Description</th>
+              <tr className="border-b-2 border-slate-200 text-slate-500 uppercase tracking-wider text-[11px]">
+                <th className="py-3 px-1 font-bold">Item Description</th>
                 <th className="py-3 px-2 text-center font-bold">Qty</th>
-                <th className="py-3 px-2 text-right font-bold">Unit Rate</th>
+                <th className="py-3 px-2 text-right font-bold">Unit Price</th>
                 <th className="py-3 px-2 text-right font-bold">Line Total</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04] text-slate-200">
+            <tbody className="divide-y divide-slate-100 text-slate-700">
               {invoice.items.map((item, idx) => (
-                <tr key={idx} className="hover:bg-white/[0.02] transition">
-                  <td className="py-3.5 px-1 font-semibold text-white">{item.description}</td>
-                  <td className="py-3.5 px-2 text-center text-slate-300">{item.quantity}</td>
-                  <td className="py-3.5 px-2 text-right font-mono">${item.unitPrice.toFixed(2)}</td>
-                  <td className="py-3.5 px-2 text-right font-mono font-bold text-white">${item.total.toFixed(2)}</td>
+                <tr key={idx} className="hover:bg-slate-50/70 transition">
+                  <td className="py-4 px-1 font-semibold text-[#001435]">{item.description}</td>
+                  <td className="py-4 px-2 text-center text-slate-600">{item.quantity}</td>
+                  <td className="py-4 px-2 text-right">${item.unitPrice.toFixed(2)}</td>
+                  <td className="py-4 px-2 text-right font-bold text-[#001435]">${item.total.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -180,66 +181,66 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
         </div>
 
         {/* Financial Calculation Summary */}
-        <div className="mt-6 pt-5 border-t border-white/[0.08] flex flex-col items-end text-xs space-y-2">
-          <div className="flex justify-between w-64 text-slate-300">
+        <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col items-end text-xs space-y-2">
+          <div className="flex justify-between w-64 text-slate-600">
             <span>Subtotal:</span>
-            <span className="font-mono font-semibold text-white">${invoice.subtotal.toFixed(2)}</span>
+            <span className="font-semibold text-[#001435]">${invoice.subtotal.toFixed(2)}</span>
           </div>
           {invoice.discountAmount > 0 && (
-            <div className="flex justify-between w-64 text-emerald-400">
+            <div className="flex justify-between w-64 text-emerald-600">
               <span>Discount ({invoice.discountPercentage}%):</span>
-              <span className="font-mono font-semibold">-${invoice.discountAmount.toFixed(2)}</span>
+              <span className="font-semibold">-${invoice.discountAmount.toFixed(2)}</span>
             </div>
           )}
           {invoice.taxAmount > 0 && (
-            <div className="flex justify-between w-64 text-slate-300">
+            <div className="flex justify-between w-64 text-slate-600">
               <span>Tax ({invoice.taxPercentage}%):</span>
-              <span className="font-mono font-semibold">+${invoice.taxAmount.toFixed(2)}</span>
+              <span className="font-semibold">+${invoice.taxAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between w-64 pt-2.5 border-t border-white/10 text-base font-extrabold text-white">
-            <span>Total Amount:</span>
-            <span className="font-mono text-[#38bdf8]">${invoice.totalAmount.toFixed(2)}</span>
+          <div className="flex justify-between w-64 pt-2 border-t-2 border-slate-200 text-base font-black text-[#001435]">
+            <span>Total Due:</span>
+            <span className="text-[#003087]">${invoice.totalAmount.toFixed(2)}</span>
           </div>
         </div>
 
-        {/* Terms */}
+        {/* Notes */}
         {invoice.notes && (
-          <div className="mt-6 p-4 rounded-xl bg-black/30 border border-white/[0.06] text-xs text-slate-300">
-            <span className="font-bold text-white block mb-0.5">Payment Terms & Notes:</span>
+          <div className="mt-6 p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80 text-xs text-slate-600">
+            <span className="font-bold text-[#001435] block mb-0.5">Payment Terms & Notes:</span>
             {invoice.notes}
           </div>
         )}
       </div>
 
-      {/* STEP 3: PAYPAL SETTLEMENT GATEWAY */}
-      <div className="glass-panel rounded-3xl p-6 sm:p-8">
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/[0.08]">
-          <div className="w-8 h-8 rounded-xl bg-[#0070ba]/20 text-[#38bdf8] flex items-center justify-center font-extrabold text-xs border border-[#0070ba]/40">
+      {/* STEP 3: PAYPAL CHECKOUT CARD */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
+          <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
             03
           </div>
           <div>
-            <h3 className="text-base font-black text-white">PayPal Instant Settle Gateway</h3>
-            <p className="text-xs text-slate-300">Official PayPal Orders v2 Sandbox integration</p>
+            <h3 className="text-base font-bold text-[#001435]">Instant Checkout via PayPal</h3>
+            <p className="text-xs text-slate-500">Official PayPal Sandbox settlement engine</p>
           </div>
         </div>
 
         {invoice.status === 'PAID' ? (
-          <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center animate-fade-in">
-            <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-            <h4 className="text-lg font-black text-emerald-300">Invoice Settled via PayPal</h4>
-            <p className="text-xs text-slate-200 mt-1">
-              Transaction captured live into PayPal Sandbox merchant balance.
+          <div className="p-8 rounded-2xl bg-emerald-50 border border-emerald-200 text-center animate-fade-in">
+            <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
+            <h4 className="text-lg font-bold text-emerald-900">Invoice Settle Complete!</h4>
+            <p className="text-xs text-emerald-700 mt-1">
+              Payment was captured in real-time via PayPal Sandbox Orders v2 API.
             </p>
-            <div className="inline-block mt-3 bg-black/40 px-4 py-2 rounded-xl border border-emerald-500/30 font-mono text-xs text-emerald-300 font-semibold">
+            <div className="inline-block mt-3 bg-white px-4 py-2 rounded-full border border-emerald-300 font-mono text-xs text-emerald-800 font-bold shadow-xs">
               Transaction ID: {invoice.paymentId || 'PAYPAL-CAPTURED'}
             </div>
-            <p className="text-xs text-slate-400 mt-2">{invoice.paidAt}</p>
+            <p className="text-xs text-slate-500 mt-2">{invoice.paidAt}</p>
           </div>
         ) : (
           <div className="max-w-md mx-auto text-center">
             {paymentError && (
-              <div className="mb-4 p-3 bg-red-500/15 border border-red-500/30 rounded-xl text-red-300 text-xs">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs">
                 {paymentError}
               </div>
             )}
@@ -296,32 +297,32 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
 
       {/* STEP 4: AI CLIENT NOTIFICATION EMAIL */}
       {invoice.emailDraft && (
-        <div className="glass-panel rounded-3xl p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-extrabold text-xs border border-indigo-500/40">
+              <div className="w-8 h-8 rounded-full bg-[#0070ba]/10 text-[#0070ba] flex items-center justify-center font-black text-xs">
                 04
               </div>
               <div>
-                <h3 className="text-base font-black text-white">AI Client Dispatch Email</h3>
-                <p className="text-xs text-slate-300">Drafted by Gemini with payment invoice instructions</p>
+                <h3 className="text-base font-bold text-[#001435]">AI Client Dispatch Email</h3>
+                <p className="text-xs text-slate-500">Auto-drafted by Gemini with payment instructions</p>
               </div>
             </div>
 
             <button
               onClick={handleCopyEmail}
-              className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold bg-white/10 hover:bg-white/15 text-white px-4 py-2 rounded-xl border border-white/10 shadow-sm transition"
+              className="cursor-pointer pp-button-secondary text-xs py-1.5 px-4"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied to Clipboard' : 'Copy Email Body'}
+              {copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+              {copied ? 'Copied' : 'Copy Email'}
             </button>
           </div>
 
-          <div className="bg-black/35 p-5 rounded-2xl border border-white/[0.06] text-xs text-slate-200 space-y-2.5">
-            <p className="border-b border-white/[0.08] pb-2 font-medium">
-              <span className="text-slate-400 font-bold">Subject:</span> {invoice.emailDraft.subject}
+          <div className="bg-[#f5f7fa] p-5 rounded-2xl border border-slate-200/80 text-xs text-slate-700 space-y-2">
+            <p className="border-b border-slate-200 pb-2 font-medium">
+              <span className="text-slate-500 font-bold">Subject:</span> {invoice.emailDraft.subject}
             </p>
-            <div className="whitespace-pre-line leading-relaxed text-slate-300 font-sans">
+            <div className="whitespace-pre-line leading-relaxed font-sans text-slate-600">
               {invoice.emailDraft.body}
             </div>
           </div>

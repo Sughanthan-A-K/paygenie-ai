@@ -5,12 +5,10 @@ import {
   ArrowRight, 
   RefreshCw, 
   ShieldCheck, 
-  Sparkles,
-  Receipt,
-  FileSpreadsheet,
-  CheckCircle2,
+  Sparkles, 
   Lock,
-  Layers
+  Receipt,
+  FileSpreadsheet
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import { InvoiceData } from '@/types/invoice';
@@ -27,7 +25,7 @@ export default function Home() {
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [history, setHistory] = useState<InvoiceData[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'flow' | 'ledger'>('flow');
+  const [activeTab, setActiveTab] = useState<'create' | 'ledger'>('create');
 
   const handleGenerate = async (textToUse?: string) => {
     const finalPrompt = textToUse || prompt;
@@ -50,10 +48,10 @@ export default function Home() {
 
       setInvoice(data.invoice);
       setHistory((prev) => [data.invoice, ...prev]);
-      setActiveTab('flow');
+      setActiveTab('create');
 
       setTimeout(() => {
-        const el = document.getElementById('step-2-section');
+        const el = document.getElementById('invoice-step-section');
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       }, 150);
     } catch (err: any) {
@@ -80,96 +78,94 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-white flex flex-col font-sans ambient-mesh selection:bg-[#0070ba] selection:text-white">
-      {/* Top Floating Glass Navigation */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#07090e]/85 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
+    <div className="min-h-screen bg-white text-[#001435] flex flex-col font-sans">
+      {/* Official PayPal Enterprise Global Navigation */}
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           
-          {/* Brand Mark */}
+          {/* Authentic PayPal Brand Monogram */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-[#0070ba] flex items-center justify-center font-black text-white text-base shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-[#003087] flex items-center justify-center text-white font-extrabold text-xl tracking-tighter shadow-sm">
               P
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-base sm:text-lg tracking-tight text-white">
-                  PayGenie
+                <span className="font-extrabold text-xl tracking-tight text-[#001435]">
+                  PayGenie <span className="text-[#0070ba]">AI</span>
                 </span>
-                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#0070ba]/20 text-[#38bdf8] border border-[#0070ba]/40">
-                  PayPal + Gemini
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-[#003087] border border-blue-100">
+                  PayPal Developer Platform
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Nav Tabs */}
-          <div className="flex items-center gap-3">
-            <div className="flex bg-black/40 p-1 rounded-xl border border-white/[0.08]">
+          {/* Segment Control Tabs */}
+          <div className="flex items-center gap-4">
+            <div className="pp-segment-tabs">
               <button
-                onClick={() => setActiveTab('flow')}
-                className={`cursor-pointer px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
-                  activeTab === 'flow' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+                onClick={() => setActiveTab('create')}
+                className={`pp-segment-tab ${activeTab === 'create' ? 'pp-segment-tab-active' : ''}`}
               >
-                Workflow
+                Instant Invoicing
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`cursor-pointer px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
-                  activeTab === 'ledger' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
+                className={`pp-segment-tab ${activeTab === 'ledger' ? 'pp-segment-tab-active' : ''}`}
               >
                 Ledger ({history.length})
               </button>
             </div>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
-              <Lock className="w-3.5 h-3.5" /> Sandbox Active
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200">
+              <Lock className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Sandbox Verified</span>
             </span>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        {activeTab === 'flow' ? (
+      {/* Main Single-Column Editorial Stage */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-16">
+        {activeTab === 'create' ? (
           <div className="space-y-12">
             
-            {/* Editorial Hero Stage */}
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-[1.15] text-balance">
-                Turn Plain Words into Settled Payments
+            {/* Authentic PayPal Editorial Typography Headline */}
+            <section className="text-center max-w-3xl mx-auto space-y-4">
+              <h1 className="text-3xl sm:text-5xl font-black text-[#001435] tracking-tight leading-[1.15] text-balance">
+                There’s a plus side to every <br className="hidden sm:inline" />
+                <em className="italic text-[#003087]">bill you send with PayPal.</em>
               </h1>
-              <h2 className="text-sm sm:text-base text-slate-300 font-normal max-w-lg mx-auto leading-relaxed">
-                Describe any project or sale naturally. Gemini AI structures the mathematics while PayPal handles immediate one-click checkout.
+              <h2 className="text-base sm:text-lg text-slate-700 max-w-xl mx-auto leading-relaxed text-pretty">
+                Describe your project, hours, or products naturally. Gemini AI structures line items and pricing while PayPal handles immediate one-click checkout.
               </h2>
-            </div>
+            </section>
 
-            {/* Stepper Indicator */}
+            {/* Step Progress Sequence */}
             <div className="grid grid-cols-4 gap-2 text-center text-xs">
-              <div className="p-3 rounded-2xl border border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm">
+              <div className="p-3 rounded-full bg-[#003087] text-white font-bold shadow-xs">
                 01. Prompt
               </div>
-              <div className={`p-3 rounded-2xl border ${invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+              <div className={`p-3 rounded-full border ${invoice ? 'bg-[#003087] text-white font-bold shadow-xs' : 'bg-[#f5f7fa] border-slate-200 text-slate-500 font-semibold'}`}>
                 02. AI Invoice
               </div>
-              <div className={`p-3 rounded-2xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 font-bold shadow-sm' : invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+              <div className={`p-3 rounded-full border ${invoice?.status === 'PAID' ? 'bg-emerald-600 text-white font-bold shadow-xs' : invoice ? 'bg-[#003087] text-white font-bold shadow-xs' : 'bg-[#f5f7fa] border-slate-200 text-slate-500 font-semibold'}`}>
                 03. PayPal Settle
               </div>
-              <div className={`p-3 rounded-2xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+              <div className={`p-3 rounded-full border ${invoice?.status === 'PAID' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'bg-[#f5f7fa] border-slate-200 text-slate-500 font-semibold'}`}>
                 04. Receipt
               </div>
             </div>
 
-            {/* STEP 1: DESCRIBE THE BILL */}
-            <div className="glass-panel rounded-3xl p-6 sm:p-9 space-y-5">
-              <div className="flex items-center gap-3 pb-4 border-b border-white/[0.08]">
-                <div className="w-8 h-8 rounded-xl bg-[#0070ba] text-white flex items-center justify-center font-extrabold text-xs">
+            {/* STEP 1: DESCRIBE THE INVOICE (Clean PayPal Slate Plate) */}
+            <div className="bg-[#f7f9fa] border border-slate-200 rounded-3xl p-6 sm:p-9 space-y-5 shadow-xs">
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+                <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
                   01
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Describe Project & Pricing</h3>
-                  <p className="text-xs text-slate-300">Natural language input analyzed by Gemini 3.5 Flash</p>
+                  <h3 className="text-base font-bold text-[#001435]">Describe Your Project & Rates</h3>
+                  <p className="text-xs text-slate-500">Processed by Google Gemini into verified billing data</p>
                 </div>
               </div>
 
@@ -178,19 +174,19 @@ export default function Home() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-                className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#0070ba] focus:ring-1 focus:ring-[#0070ba] transition"
+                className="w-full bg-white border border-slate-300 rounded-2xl p-4 text-sm text-[#001435] placeholder-slate-600 focus:outline-none focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition"
               />
 
               {error && (
-                <p className="text-xs text-red-300 bg-red-500/15 p-3 rounded-xl border border-red-500/30">
+                <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 font-medium">
                   {error}
                 </p>
               )}
 
               {/* Quick Presets */}
               <div className="space-y-2">
-                <span className="text-[11px] uppercase font-bold text-slate-300 tracking-wider">
-                  Test Scenarios (1-Click):
+                <span className="text-[11px] uppercase font-bold text-slate-500 tracking-wider">
+                  Quick Scenarios:
                 </span>
                 <div className="flex flex-col sm:flex-row gap-2">
                   {SAMPLE_PROMPTS.map((sample, idx) => (
@@ -201,7 +197,7 @@ export default function Home() {
                         setPrompt(sample);
                         handleGenerate(sample);
                       }}
-                      className="cursor-pointer text-xs text-left bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white p-3 rounded-xl border border-white/[0.06] transition flex-1 truncate font-medium"
+                      className="cursor-pointer text-xs text-left bg-white hover:bg-slate-50 text-slate-700 p-3 rounded-xl border border-slate-200 transition flex-1 truncate font-medium shadow-2xs"
                     >
                       {sample}
                     </button>
@@ -213,33 +209,33 @@ export default function Home() {
                 <button
                   onClick={() => handleGenerate()}
                   disabled={loading || !prompt.trim()}
-                  className="btn-craft-primary w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="pp-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <RefreshCw className="w-4 h-4 animate-spin mr-2" />
                       Parsing with Gemini AI...
                     </>
                   ) : (
                     <>
-                      Extract Invoice & Settle
-                      <ArrowRight className="w-4 h-4" />
+                      Generate & Checkout
+                      <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* STEP 2, 3, 4: SEQUENTIALLY DISPLAYED */}
+            {/* STEP 2, 3, 4: SEQUENTIAL INVOICE & PAYPAL CHECKOUT */}
             {invoice && (
-              <div id="step-2-section" className="space-y-8 animate-fade-in scroll-mt-24">
+              <div id="invoice-step-section" className="space-y-8 animate-fade-in scroll-mt-24">
                 <div className="flex items-center gap-3 pt-2">
-                  <div className="w-8 h-8 rounded-xl bg-[#0070ba]/20 text-[#38bdf8] flex items-center justify-center font-extrabold text-xs border border-[#0070ba]/40">
+                  <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
                     02
                   </div>
                   <div>
-                    <h3 className="text-base font-black text-white">Verified Structured Invoice</h3>
-                    <p className="text-xs text-slate-300">Ready for instant client settlement & PDF export</p>
+                    <h3 className="text-base font-bold text-[#001435]">Verified Structured Invoice</h3>
+                    <p className="text-xs text-slate-500">Ready for instant client checkout & PDF export</p>
                   </div>
                 </div>
 
@@ -248,16 +244,16 @@ export default function Home() {
             )}
           </div>
         ) : (
-          /* Ledger Tab */
-          <div className="glass-panel rounded-3xl p-6 sm:p-9">
-            <div className="flex items-center justify-between pb-5 border-b border-white/[0.08]">
+          /* Merchant Ledger View */
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-xs">
+            <div className="flex items-center justify-between pb-5 border-b border-slate-200">
               <div>
-                <h2 className="text-xl font-black text-white">Merchant Settlement Ledger</h2>
-                <p className="text-xs text-slate-300 mt-0.5">Session records & confirmed PayPal transactions</p>
+                <h2 className="text-2xl font-black text-[#001435]">Merchant Settlement Ledger</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Session records & confirmed PayPal transactions</p>
               </div>
               <div className="text-right">
                 <span className="text-[11px] uppercase font-bold text-slate-400 block">Total Collected</span>
-                <span className="text-xl font-mono font-extrabold text-emerald-400">
+                <span className="text-2xl font-black text-emerald-600">
                   ${history
                     .filter((i) => i.status === 'PAID')
                     .reduce((sum, i) => sum + i.totalAmount, 0)
@@ -268,13 +264,13 @@ export default function Home() {
 
             {history.length === 0 ? (
               <div className="text-center py-16 text-slate-400 text-xs">
-                No invoices in this session. Generate an invoice from the Workflow tab.
+                No invoices in this session. Generate an invoice from the Invoicing tab.
               </div>
             ) : (
               <div className="overflow-x-auto mt-6">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-white/[0.08] text-slate-400 uppercase text-[11px]">
+                    <tr className="border-b-2 border-slate-200 text-slate-500 uppercase text-[11px]">
                       <th className="py-3 px-3 font-bold">Invoice #</th>
                       <th className="py-3 px-3 font-bold">Client</th>
                       <th className="py-3 px-3 font-bold">Date</th>
@@ -283,31 +279,31 @@ export default function Home() {
                       <th className="py-3 px-3 text-right font-bold">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/[0.04] text-slate-200">
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
                     {history.map((inv, idx) => (
-                      <tr key={idx} className="hover:bg-white/[0.03] transition">
-                        <td className="py-3.5 px-3 font-mono font-semibold text-[#38bdf8]">{inv.invoiceNumber}</td>
-                        <td className="py-3.5 px-3 text-white font-bold">{inv.clientName}</td>
-                        <td className="py-3.5 px-3 text-slate-300">{inv.date}</td>
-                        <td className="py-3.5 px-3 text-right font-mono font-bold text-white">${inv.totalAmount.toFixed(2)}</td>
-                        <td className="py-3.5 px-3 text-center">
+                      <tr key={idx} className="hover:bg-slate-50 transition">
+                        <td className="py-4 px-3 font-mono font-bold text-[#003087]">{inv.invoiceNumber}</td>
+                        <td className="py-4 px-3 text-[#001435] font-bold">{inv.clientName}</td>
+                        <td className="py-4 px-3 text-slate-500">{inv.date}</td>
+                        <td className="py-4 px-3 text-right font-bold text-[#001435]">${inv.totalAmount.toFixed(2)}</td>
+                        <td className="py-4 px-3 text-center">
                           {inv.status === 'PAID' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                               PAID
                             </span>
                           ) : (
-                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                               PENDING
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-3 text-right">
+                        <td className="py-4 px-3 text-right">
                           <button
                             onClick={() => {
                               setInvoice(inv);
-                              setActiveTab('flow');
+                              setActiveTab('create');
                             }}
-                            className="cursor-pointer text-xs font-bold text-[#38bdf8] hover:underline"
+                            className="cursor-pointer text-xs font-bold text-[#0070ba] hover:underline"
                           >
                             View & Settle →
                           </button>
@@ -322,11 +318,11 @@ export default function Home() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/[0.08] bg-[#07090e] py-8 text-xs text-slate-400">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="font-bold text-slate-300">PayGenie • PayPal AI Hackathon 2026</span>
-          <span className="text-slate-400">PayPal Orders v2 SDK & Google Gemini 3.5 Integration</span>
+      {/* Official PayPal Enterprise Footer */}
+      <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="font-bold text-[#001435]">PayGenie • PayPal AI Hackathon 2026</span>
+          <span className="text-slate-500">Powered by PayPal Developer Platform & Google Gemini</span>
         </div>
       </footer>
     </div>
