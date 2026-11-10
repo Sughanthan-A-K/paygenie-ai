@@ -1,111 +1,61 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #001435;
-  --pp-blue: #003087;
-  --pp-blue-hover: #0070e0;
-  --pp-blue-active: #001c64;
-  --pp-cyan: #00cfde;
-  --pp-stone: #f5f7fa;
-  --pp-border: #e2e8f0;
+  --bg: #090d16;
+  --surface: #101726;
+  --surface-hover: #151e32;
+  --border: #1f2a40;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --pp-navy: #003087;
+  --pp-blue: #0070ba;
+  --pp-accent: #38bdf8;
+  --pp-gold: #ffc439;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  margin: 0;
+  padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Authentic PayPal PPUI 3.0 Pill Button */
-.pp-btn-pill-primary {
-  position: relative;
-  border-radius: 1000px;
-  cursor: pointer;
+/* Subtle fintech grid background */
+.fintech-grid {
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(0, 112, 186, 0.15) 0%, transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+}
+
+/* Precision Action Button */
+.btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 6rem;
-  text-align: center;
-  text-decoration: none;
-  transition: all 0.2s ease-in-out;
-  border: 0.125rem solid #003087;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #0070ba 0%, #003087 100%);
   color: #ffffff;
-  font-weight: 700;
-  background-color: #003087;
-  padding: 0.625rem 1.875rem;
-  font-size: 1rem;
-  line-height: 1.5rem;
-}
-
-.pp-btn-pill-primary:hover {
-  background-color: #0070e0;
-  border-color: #0070e0;
-  color: #ffffff;
-}
-
-.pp-btn-pill-primary:active {
-  background-color: #001c64;
-  border-color: #001c64;
-}
-
-.pp-btn-pill-secondary {
-  position: relative;
-  border-radius: 1000px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.65rem 1.4rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px 0 rgba(0, 112, 186, 0.35);
+  transition: all 0.15s ease-in-out;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 6rem;
-  text-align: center;
-  transition: all 0.2s ease-in-out;
-  border: 0.125rem solid #003087;
-  color: #003087;
-  font-weight: 700;
-  background-color: transparent;
-  padding: 0.625rem 1.875rem;
-  font-size: 1rem;
-  line-height: 1.5rem;
 }
 
-.pp-btn-pill-secondary:hover {
-  background-color: rgba(0, 48, 135, 0.05);
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px 0 rgba(0, 112, 186, 0.5);
 }
 
-/* PayPal Editorial Headline styling */
-.pp-headline-1 {
-  font-size: clamp(2.25rem, 1.5rem + 3vw, 4rem);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-  font-weight: 800;
-  color: #001435;
-}
-
-.pp-headline-1 em {
-  font-style: italic;
-  font-weight: 400;
-}
-
-.pp-headline-2 {
-  font-size: clamp(1.75rem, 1.25rem + 2vw, 2.75rem);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  font-weight: 800;
-  color: #001435;
-}
-
-.pp-headline-2 em {
-  font-style: italic;
-  font-weight: 400;
-}
-
-/* Stone plate background from PayPal PPUI3.0 */
-.pp-stone-plate {
-  background-color: #f7f9fa;
-}
-
-.pp-blue-gradient-plate {
-  background: linear-gradient(135deg, #001435 0%, #003087 100%);
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
 }
