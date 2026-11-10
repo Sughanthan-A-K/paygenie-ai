@@ -1,19 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ArrowRight,
   RefreshCw,
   History,
-  Layers,
-  Monitor,
-  Smartphone,
   Eye,
-  Sun,
-  Moon,
-  ShieldCheck,
   CheckCircle2,
-  FileText,
+  ChevronDown,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import GenieAssistant from '@/components/GenieAssistant';
@@ -26,24 +22,13 @@ const SAMPLE_PROMPTS = [
 ];
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<'business' | 'personal'>('business');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [history, setHistory] = useState<InvoiceData[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [genieStatus, setGenieStatus] = useState<'idle' | 'generating' | 'ready' | 'paid'>('idle');
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    // Sync dark class on html root
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [isDark]);
 
   const handleGenerate = async (textToUse?: string) => {
     const finalPrompt = textToUse || prompt;
@@ -106,243 +91,350 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
-      isDark ? 'bg-[#001435] text-slate-100' : 'bg-[#f5f7fa] text-slate-900'
-    }`}>
-      {/* Official PayPal Enterprise Style Top Bar */}
-      <header className={`border-b sticky top-0 z-40 transition-colors backdrop-blur-md ${
-        isDark ? 'bg-[#001435]/90 border-slate-800' : 'bg-white/95 border-slate-200 shadow-sm'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Authentic PayPal Double-P monogram */}
-            <div className="w-10 h-10 rounded-xl bg-[#003087] flex items-center justify-center shadow-md">
-              <span className="font-black italic text-xl text-[#00CFDE]">P</span>
-              <span className="font-black italic text-xl text-[#0070BA] -ml-2">P</span>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xl tracking-tight text-[#003087] dark:text-white">
-                  PayPal <span className="font-medium text-[#0070BA] dark:text-[#00CFDE]">PayGenie</span>
-                </span>
-                <span className="text-[10px] font-bold tracking-wider uppercase text-blue-700 bg-blue-100 dark:bg-blue-950 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                  AI Commerce
-                </span>
+    <div className="min-h-screen bg-white text-[#001435] flex flex-col font-sans">
+      {/* 1. Official PayPal Global Header */}
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            {/* PayPal Official Wordmark + Double-P */}
+            <a href="#" className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-full bg-[#003087] flex items-center justify-center">
+                <span className="font-black italic text-lg text-[#00CFDE]">P</span>
+                <span className="font-black italic text-lg text-[#0070BA] -ml-2">P</span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Autonomous Invoicing & Direct Settlement Engine
-              </p>
-            </div>
+              <span className="font-black text-2xl tracking-tight text-[#003087]">
+                PayPal
+              </span>
+            </a>
+
+            {/* Official Nav Links */}
+            <nav className="hidden md:flex items-center gap-6 text-sm font-bold text-[#001435]">
+              <a href="#" className="flex items-center gap-1 hover:text-[#0070BA] transition">
+                Personal <ChevronDown className="w-3.5 h-3.5" />
+              </a>
+              <a href="#" className="flex items-center gap-1 text-[#0070BA] transition">
+                Business <ChevronDown className="w-3.5 h-3.5" />
+              </a>
+              <a href="#" className="flex items-center gap-1 hover:text-[#0070BA] transition">
+                Enterprise <ChevronDown className="w-3.5 h-3.5" />
+              </a>
+              <a href="#" className="hover:text-[#0070BA] transition">
+                Developer
+              </a>
+            </nav>
           </div>
 
-          {/* Controls: Device Switcher + Theme Toggle */}
           <div className="flex items-center gap-3">
-            {/* Device Switcher */}
-            <div className={`p-1 rounded-xl flex items-center gap-1 border ${
-              isDark ? 'bg-slate-900 border-slate-800' : 'bg-slate-100 border-slate-200'
-            }`}>
-              <button
-                onClick={() => setViewMode('desktop')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  viewMode === 'desktop'
-                    ? 'bg-[#0070BA] text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Monitor className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Desktop</span>
-              </button>
-              <button
-                onClick={() => setViewMode('mobile')}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  viewMode === 'mobile'
-                    ? 'bg-[#0070BA] text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Smartphone className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Mobile Frame</span>
-              </button>
-            </div>
-
-            {/* Light / Dark Mode Toggle */}
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className={`p-2 rounded-xl border transition cursor-pointer ${
-                isDark
-                  ? 'bg-slate-900 border-slate-800 text-amber-400 hover:bg-slate-800'
-                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-              }`}
-              title={isDark ? 'Switch to PayPal Light Mode' : 'Switch to Dark Mode'}
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            <a href="https://www.sandbox.paypal.com/signin" target="_blank" className="pp-btn-pill-secondary !py-2 !px-5 !text-sm">
+              Log In
+            </a>
+            <a href="https://www.sandbox.paypal.com/signup" target="_blank" className="pp-btn-pill-primary !py-2 !px-5 !text-sm">
+              Sign Up
+            </a>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className={`flex-1 w-full mx-auto transition-all duration-500 ${
-        viewMode === 'mobile'
-          ? 'max-w-[420px] my-8 bg-white dark:bg-slate-900 rounded-[44px] border-[10px] border-slate-300 dark:border-slate-800 shadow-2xl overflow-hidden min-h-[840px]'
-          : 'max-w-7xl'
-      }`}>
-        {/* Mobile notch if mobile view */}
-        {viewMode === 'mobile' && (
-          <div className="bg-slate-100 dark:bg-slate-950 py-2.5 flex items-center justify-center border-b border-slate-200 dark:border-slate-800">
-            <div className="w-24 h-4 bg-slate-300 dark:bg-slate-800 rounded-full flex items-center justify-center">
-              <div className="w-2.5 h-2.5 bg-slate-400 dark:bg-slate-900 rounded-full" />
-            </div>
-          </div>
-        )}
-
-        <main className={`w-full px-4 sm:px-6 lg:px-8 py-10 ${viewMode === 'mobile' ? 'px-4 py-4 text-xs' : ''}`}>
-          {/* Header Title in Official PayPal Tone */}
-          <div className="text-center max-w-3xl mx-auto mb-10">
-            <h1 className={`${viewMode === 'mobile' ? 'text-2xl' : 'text-3xl sm:text-4xl'} font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight`}>
-              Smart Invoicing & Instant Settle
-            </h1>
-            <p className="mt-3 text-slate-600 dark:text-slate-400 text-sm leading-relaxed max-w-2xl mx-auto">
-              Transform conversational project details into an official PayPal invoice with automatic discount math, tax computation, and client payment notifications.
-            </p>
-          </div>
-
-          {/* AI Generator Input Form */}
-          <div className={`max-w-3xl mx-auto rounded-3xl p-6 sm:p-8 border shadow-sm mb-12 ${
-            isDark ? 'bg-[#001c47] border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <label htmlFor="prompt-input" className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-              Billing Description or Job Summary
-            </label>
-            <textarea
-              id="prompt-input"
-              rows={3}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-              className={`w-full rounded-2xl p-4 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0070BA] transition ${
-                isDark
-                  ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
-                  : 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400'
-              }`}
-            />
-
-            {error && (
-              <p className="text-red-500 text-xs mt-2 bg-red-50 dark:bg-red-950/40 p-2.5 rounded-xl border border-red-200 dark:border-red-800">
-                {error}
-              </p>
-            )}
-
-            {/* Quick Prompts */}
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                Quick Samples:
-              </span>
-              {SAMPLE_PROMPTS.map((sample, i) => (
+      {/* 2. Official Hero Section — Quantum Leap Grid */}
+      <section className="bg-white py-12 sm:py-20 border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Left Column: Segment tabs + Headline + Prompt Box */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* Official Segment Control Tabs (Personal vs Business) */}
+              <div className="inline-flex p-1 bg-[#f0f2f5] rounded-full">
                 <button
-                  key={i}
-                  type="button"
-                  onClick={() => {
-                    setPrompt(sample);
-                    handleGenerate(sample);
-                  }}
-                  className={`text-xs text-left px-3 py-1.5 rounded-xl border transition cursor-pointer truncate max-w-[260px] ${
-                    isDark
-                      ? 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
-                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  onClick={() => setActiveTab('personal')}
+                  className={`px-5 py-1.5 rounded-full text-xs font-bold transition ${
+                    activeTab === 'personal'
+                      ? 'bg-white text-[#001435] shadow-sm'
+                      : 'text-slate-600 hover:text-[#001435]'
                   }`}
                 >
-                  {sample}
+                  Personal
                 </button>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => handleGenerate()}
-                disabled={loading || !prompt.trim()}
-                className="inline-flex items-center gap-2 bg-[#0070BA] hover:bg-[#003087] text-white font-bold text-sm px-7 py-3 rounded-2xl transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Processing with AI...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Generate Invoice</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Generated Live Invoice Card */}
-          {invoice && (
-            <div id="invoice-section" className="max-w-4xl mx-auto mb-16 scroll-mt-24">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-[#0070BA]" />
-                  Official Generated Invoice
-                </h2>
+                <button
+                  onClick={() => setActiveTab('business')}
+                  className={`px-5 py-1.5 rounded-full text-xs font-bold transition ${
+                    activeTab === 'business'
+                      ? 'bg-white text-[#001435] shadow-sm'
+                      : 'text-slate-600 hover:text-[#001435]'
+                  }`}
+                >
+                  Business
+                </button>
               </div>
-              <InvoiceView invoice={invoice} onPaymentSuccess={handlePaymentSuccess} isDark={isDark} />
-            </div>
-          )}
 
-          {/* Invoices Ledger */}
-          {history.length > 0 && (
-            <div className={`max-w-4xl mx-auto mt-10 rounded-3xl p-6 sm:p-8 border shadow-sm ${
-              isDark ? 'bg-[#001c47] border-slate-800' : 'bg-white border-slate-200'
-            }`}>
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <History className="w-5 h-5 text-[#0070BA]" />
-                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
-                    Recent Invoices Ledger
+              {/* Exact PayPal Typography: pp-headline-1 with italic em */}
+              <h1 className="pp-headline-1">
+                There’s a plus side to every <em className="text-[#003087]">bill you send with PayPal.</em>
+              </h1>
+              <p className="text-lg text-slate-600 max-w-xl font-normal leading-relaxed">
+                Meet <strong className="text-[#003087]">PayGenie AI</strong>. Type what you delivered in plain conversational words. Gemini AI calculates line items, taxes, discounts, and drafts client emails — with instant one-click PayPal settlement.
+              </p>
+
+              {/* Interactive AI Invoicing Form Card */}
+              <div className="bg-[#f7f9fa] rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="prompt-input" className="text-xs font-extrabold uppercase tracking-wider text-[#001435]">
+                    Describe What You Did Or Sold
+                  </label>
+                  <span className="text-[11px] font-semibold text-[#0070BA] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> Gemini 3.5 Powered
+                  </span>
+                </div>
+
+                <textarea
+                  id="prompt-input"
+                  rows={3}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
+                  className="w-full bg-white border border-slate-300 rounded-2xl p-4 text-sm text-[#001435] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0070BA] transition"
+                />
+
+                {error && (
+                  <p className="text-red-600 text-xs bg-red-50 p-2.5 rounded-xl border border-red-200">
+                    {error}
+                  </p>
+                )}
+
+                {/* Quick Samples */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Quick Try:
+                  </span>
+                  {SAMPLE_PROMPTS.map((sample, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        setPrompt(sample);
+                        handleGenerate(sample);
+                      }}
+                      className="text-xs text-left bg-white hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-full border border-slate-200 transition cursor-pointer truncate max-w-[240px] shadow-2xs"
+                    >
+                      {sample}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={() => handleGenerate()}
+                    disabled={loading || !prompt.trim()}
+                    className="pp-btn-pill-primary flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>AI Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Generate Invoice</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Authentic PayPal Phone Mockup Frame */}
+            <div className="lg:col-span-5 flex justify-center">
+              <div className="relative w-full max-w-[340px]">
+                {/* Physical Phone frame */}
+                <div className="bg-[#001435] rounded-[48px] p-3 shadow-2xl border-4 border-slate-800">
+                  {/* Phone screen */}
+                  <div className="bg-[#f7f9fa] rounded-[40px] overflow-hidden border border-slate-200 text-[#001435] min-h-[580px] flex flex-col justify-between">
+                    
+                    {/* Top camera notch */}
+                    <div className="bg-white py-2 flex items-center justify-center border-b border-slate-100">
+                      <div className="w-20 h-3.5 bg-slate-900 rounded-full" />
+                    </div>
+
+                    {/* In-app header */}
+                    <div className="p-4 bg-white border-b border-slate-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-[#003087] flex items-center justify-center text-white text-xs font-black italic">
+                          P
+                        </div>
+                        <span className="font-extrabold text-sm text-[#001435]">PayPal App</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Live Sync
+                      </span>
+                    </div>
+
+                    {/* Phone Body content displaying the invoice preview */}
+                    <div className="p-4 flex-1 space-y-3">
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                        <span className="text-[10px] font-mono font-bold text-[#0070BA]">
+                          {invoice?.invoiceNumber || 'INV-2026-PREVIEW'}
+                        </span>
+                        <h4 className="font-extrabold text-sm text-[#001435] mt-1">
+                          {invoice?.clientName || 'Acme Tech'}
+                        </h4>
+                        <div className="text-2xl font-black text-[#003087] mt-2">
+                          ${invoice ? invoice.totalAmount.toFixed(2) : '617.50'}
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Due in 14 days • PayPal Checkout</p>
+                      </div>
+
+                      {/* Mockup PayPal Button inside phone */}
+                      <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center space-y-2">
+                        <div className="w-full py-2.5 rounded-full bg-[#ffc439] hover:bg-[#f4b628] font-black text-xs text-[#001435] flex items-center justify-center shadow-xs cursor-pointer">
+                          Pay with <span className="text-[#003087] ml-1">Pay</span><span className="text-[#0070BA]">Pal</span>
+                        </div>
+                        <p className="text-[9px] text-slate-400">One-click biometric authorization</p>
+                      </div>
+
+                      <div className="bg-blue-50/60 p-3 rounded-2xl border border-blue-100 text-[11px] text-slate-600">
+                        <span className="font-bold text-[#003087] block mb-0.5">Gemini AI Status:</span>
+                        Instant real-time sync with desktop invoice generator.
+                      </div>
+                    </div>
+
+                    {/* Phone footer */}
+                    <div className="p-3 bg-white border-t border-slate-100 text-center">
+                      <div className="w-28 h-1 bg-slate-300 rounded-full mx-auto" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating badge */}
+                <div className="absolute -bottom-4 -left-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-lg flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold">
+                    ✓
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-[#001435]">Zero Friction</p>
+                    <p className="text-[10px] text-slate-500">Dual Screen Harmony</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 3. Generated Invoice Section */}
+      {invoice && (
+        <section id="invoice-section" className="py-16 bg-[#f7f9fa] border-b border-slate-200 scroll-mt-20">
+          <div className="max-w-4xl mx-auto px-4 sm:px-8">
+            <div className="mb-6">
+              <span className="text-xs font-extrabold uppercase tracking-wider text-[#0070BA]">
+                Generated Output
+              </span>
+              <h2 className="pp-headline-2 mt-1">Official Merchant Invoice</h2>
+            </div>
+            <InvoiceView invoice={invoice} onPaymentSuccess={handlePaymentSuccess} />
+          </div>
+        </section>
+      )}
+
+      {/* 4. Split Section Feature (From your extracted code): "Add another 3% on top" */}
+      <section className="py-16 sm:py-24 bg-white border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <div className="lg:col-span-6 flex justify-center">
+              {/* PayPal Cashback Mastercard Card Mockup */}
+              <div className="w-full max-w-md h-56 rounded-3xl bg-gradient-to-tr from-[#001435] via-[#003087] to-[#0070e0] p-6 text-white shadow-xl flex flex-col justify-between relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-7 rounded bg-amber-400/80 border border-amber-300" />
+                  <span className="font-black italic text-2xl text-white">PayPal</span>
+                </div>
+                <div>
+                  <p className="text-xs tracking-widest uppercase text-slate-300">Autonomous Settlement Card</p>
+                  <p className="font-mono text-base tracking-widest mt-1">•••• •••• •••• 6538</p>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span>SUGHANTHAN</span>
+                  <div className="flex -space-x-2">
+                    <div className="w-6 h-6 rounded-full bg-red-500 opacity-90" />
+                    <div className="w-6 h-6 rounded-full bg-amber-500 opacity-90" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-6 space-y-4">
+              <h2 className="pp-headline-2">
+                Add another <em className="text-[#0070BA]">zero friction to your cash flow.</em>
+              </h2>
+              <p className="text-base text-slate-600 leading-relaxed">
+                Traditional invoicing takes 30+ minutes per invoice. With PayGenie AI, conversational inputs instantly compile into mathematically accurate invoices and live PayPal order endpoints in seconds.
+              </p>
+              <div className="pt-2">
+                <a href="#prompt-input" className="pp-btn-pill-primary">
+                  Create Invoice Now
+                </a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Invoices Ledger */}
+      {history.length > 0 && (
+        <section className="py-16 bg-[#f7f9fa]">
+          <div className="max-w-5xl mx-auto px-4 sm:px-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-50 flex items-center justify-center text-[#003087]">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-[#001435]">
+                    Invoices Ledger
                   </h3>
                 </div>
-                <span className="text-xs text-slate-500">{history.length} Record{history.length > 1 ? 's' : ''}</span>
+                <span className="text-xs font-semibold text-slate-500">{history.length} Record{history.length > 1 ? 's' : ''}</span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="text-slate-500 border-b border-slate-100 dark:border-slate-800 uppercase tracking-wider font-semibold">
-                      <th className="py-2.5">Invoice #</th>
-                      <th className="py-2.5">Client</th>
-                      <th className="py-2.5">Date</th>
-                      <th className="py-2.5 text-right">Amount</th>
-                      <th className="py-2.5 text-center">Status</th>
-                      <th className="py-2.5 text-right">Action</th>
+                    <tr className="text-slate-400 border-b border-slate-100 uppercase tracking-wider font-bold">
+                      <th className="py-3 px-2">Invoice #</th>
+                      <th className="py-3 px-2">Client</th>
+                      <th className="py-3 px-2">Date</th>
+                      <th className="py-3 px-2 text-right">Amount</th>
+                      <th className="py-3 px-2 text-center">Status</th>
+                      <th className="py-3 px-2 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
                     {history.map((inv, index) => (
-                      <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                        <td className="py-3 font-mono font-bold text-[#0070BA] dark:text-blue-400">{inv.invoiceNumber}</td>
-                        <td className="py-3 font-medium text-slate-900 dark:text-white">{inv.clientName}</td>
-                        <td className="py-3 text-slate-500">{inv.date}</td>
-                        <td className="py-3 text-right font-mono font-bold text-slate-900 dark:text-slate-100">${inv.totalAmount.toFixed(2)}</td>
-                        <td className="py-3 text-center">
+                      <tr key={index} className="hover:bg-slate-50 transition">
+                        <td className="py-3.5 px-2 font-mono font-bold text-[#003087]">{inv.invoiceNumber}</td>
+                        <td className="py-3.5 px-2 font-bold text-[#001435]">{inv.clientName}</td>
+                        <td className="py-3.5 px-2 text-slate-500">{inv.date}</td>
+                        <td className="py-3.5 px-2 text-right font-mono font-bold text-[#001435]">${inv.totalAmount.toFixed(2)}</td>
+                        <td className="py-3.5 px-2 text-center">
                           {inv.status === 'PAID' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700">
-                              <CheckCircle2 className="w-3 h-3" /> PAID
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> PAID
                             </span>
                           ) : (
-                            <span className="text-[11px] font-bold text-amber-700 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-400 px-2 py-0.5 rounded border border-amber-300 dark:border-amber-700">
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
                               PENDING
                             </span>
                           )}
                         </td>
-                        <td className="py-3 text-right">
+                        <td className="py-3.5 px-2 text-right">
                           <button
                             onClick={() => handleSelectFromLedger(inv)}
-                            className="inline-flex items-center gap-1 text-xs text-[#0070BA] hover:underline font-semibold cursor-pointer"
+                            className="inline-flex items-center gap-1 text-xs text-[#0070BA] hover:underline font-bold cursor-pointer"
                           >
                             <Eye className="w-3 h-3" />
-                            <span>View & Pay</span>
+                            <span>View & Settle</span>
                           </button>
                         </td>
                       </tr>
@@ -351,9 +443,9 @@ export default function Home() {
                 </table>
               </div>
             </div>
-          )}
-        </main>
-      </div>
+          </div>
+        </section>
+      )}
 
       {/* Floating Genie Assistant */}
       <GenieAssistant
@@ -363,11 +455,29 @@ export default function Home() {
         currency={invoice?.currency}
       />
 
-      {/* Official PayPal Enterprise Footer */}
-      <footer className={`border-t py-6 text-center text-xs transition-colors mt-12 ${
-        isDark ? 'bg-[#001435] border-slate-800 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-      }`}>
-        <p>© 1999–2026 PayPal, Inc. All rights reserved. • PayGenie AI Autonomous Billing Assistant</p>
+      {/* 6. Authentic PayPal Footer (From your extracted PayPal page) */}
+      <footer className="border-t border-slate-200 bg-white py-12 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-6 font-bold text-[#001435]">
+            <div className="flex flex-wrap gap-6">
+              <a href="#" className="hover:text-[#0070BA]">Help</a>
+              <a href="#" className="hover:text-[#0070BA]">Contact</a>
+              <a href="#" className="hover:text-[#0070BA]">Fees</a>
+              <a href="#" className="hover:text-[#0070BA]">Security</a>
+              <a href="#" className="hover:text-[#0070BA]">Features</a>
+              <a href="#" className="hover:text-[#0070BA]">Shop</a>
+            </div>
+            <span>United States</span>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p>© 1999–2026 PayPal, Inc. All rights reserved. Built for PayPal AI Hackathon 2026.</p>
+            <div className="flex gap-4">
+              <a href="#" className="hover:underline">Privacy</a>
+              <a href="#" className="hover:underline">Legal</a>
+              <a href="#" className="hover:underline">Policy Updates</a>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
