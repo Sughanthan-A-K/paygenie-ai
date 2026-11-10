@@ -5,15 +5,12 @@ import {
   ArrowRight, 
   RefreshCw, 
   ShieldCheck, 
-  CheckCircle2, 
   Sparkles,
   Receipt,
   FileSpreadsheet,
-  Check,
-  CreditCard,
-  Send,
-  Zap,
-  ArrowDown
+  CheckCircle2,
+  Lock,
+  Layers
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import { InvoiceData } from '@/types/invoice';
@@ -83,92 +80,96 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans">
-      {/* Top Navbar */}
-      <header className="border-b border-white/10 bg-[#0b0f19]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-[#07090e] text-white flex flex-col font-sans ambient-mesh selection:bg-[#0070ba] selection:text-white">
+      {/* Top Floating Glass Navigation */}
+      <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#07090e]/85 backdrop-blur-xl">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-18 flex items-center justify-between">
+          
+          {/* Brand Mark */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#0070ba] flex items-center justify-center font-black text-white text-sm">
+            <div className="w-9 h-9 rounded-2xl bg-[#0070ba] flex items-center justify-center font-black text-white text-base shadow-sm">
               P
             </div>
             <div>
-              <span className="font-bold text-base text-white tracking-tight">PayGenie</span>
-              <span className="ml-2 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-[#0070ba]/20 text-[#38bdf8] border border-[#0070ba]/40">
-                PayPal + AI
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-base sm:text-lg tracking-tight text-white">
+                  PayGenie
+                </span>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#0070ba]/20 text-[#38bdf8] border border-[#0070ba]/40">
+                  PayPal + Gemini
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex bg-[#111827] p-1 rounded-lg border border-white/10">
+          {/* Nav Tabs */}
+          <div className="flex items-center gap-3">
+            <div className="flex bg-black/40 p-1 rounded-xl border border-white/[0.08]">
               <button
                 onClick={() => setActiveTab('flow')}
-                className={`cursor-pointer px-3 py-1 rounded-md text-xs font-medium transition ${
-                  activeTab === 'flow' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`cursor-pointer px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                  activeTab === 'flow' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 Workflow
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`cursor-pointer px-3 py-1 rounded-md text-xs font-medium transition ${
-                  activeTab === 'ledger' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`cursor-pointer px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                  activeTab === 'ledger' ? 'bg-white/10 text-white shadow-sm' : 'text-slate-400 hover:text-white'
                 }`}
               >
                 Ledger ({history.length})
               </button>
             </div>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-              <ShieldCheck className="w-3.5 h-3.5" /> Sandbox Ready
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20">
+              <Lock className="w-3.5 h-3.5" /> Sandbox Active
             </span>
           </div>
         </div>
       </header>
 
-      {/* Main Single Column Sequential Flow */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10">
+      {/* Main Container */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-10 sm:py-14">
         {activeTab === 'flow' ? (
-          <div className="space-y-10">
+          <div className="space-y-12">
             
-            {/* Header Hero */}
-            <div className="text-center max-w-2xl mx-auto">
-              <span className="text-xs font-mono uppercase tracking-wider text-[#38bdf8] font-bold">
-                PayPal Developer Platform + Gemini AI
-              </span>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-2">
-                Automated Payment Workflow
+            {/* Editorial Hero Stage */}
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-[1.15] text-balance">
+                Turn Plain Words into Settled Payments
               </h1>
-              <p className="text-sm text-slate-400 mt-2">
-                From conversational description to structured invoice, PayPal Sandbox settlement, and client confirmation.
-              </p>
+              <h2 className="text-sm sm:text-base text-slate-300 font-normal max-w-lg mx-auto leading-relaxed">
+                Describe any project or sale naturally. Gemini AI structures the mathematics while PayPal handles immediate one-click checkout.
+              </h2>
             </div>
 
-            {/* Stepper Progress Indicator */}
+            {/* Stepper Indicator */}
             <div className="grid grid-cols-4 gap-2 text-center text-xs">
-              <div className="p-2.5 rounded-xl border border-[#0070ba]/40 bg-[#0070ba]/10 text-[#38bdf8] font-semibold">
-                1. Describe Job
+              <div className="p-3 rounded-2xl border border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm">
+                01. Prompt
               </div>
-              <div className={`p-2.5 rounded-xl border ${invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/10 text-[#38bdf8] font-semibold' : 'border-white/5 bg-[#111827] text-slate-500'}`}>
-                2. AI Invoice
+              <div className={`p-3 rounded-2xl border ${invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+                02. AI Invoice
               </div>
-              <div className={`p-2.5 rounded-xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold' : invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/10 text-[#38bdf8] font-semibold' : 'border-white/5 bg-[#111827] text-slate-500'}`}>
-                3. PayPal Checkout
+              <div className={`p-3 rounded-2xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 font-bold shadow-sm' : invoice ? 'border-[#0070ba]/40 bg-[#0070ba]/15 text-[#38bdf8] font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+                03. PayPal Settle
               </div>
-              <div className={`p-2.5 rounded-xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold' : 'border-white/5 bg-[#111827] text-slate-500'}`}>
-                4. Confirmation
+              <div className={`p-3 rounded-2xl border ${invoice?.status === 'PAID' ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 font-bold shadow-sm' : 'border-white/[0.06] bg-black/30 text-slate-400 font-medium'}`}>
+                04. Receipt
               </div>
             </div>
 
-            {/* STEP 1: DESCRIBE WORK */}
-            <div className="bg-[#111827] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl space-y-5">
-              <div className="flex items-center gap-3 pb-4 border-b border-white/10">
-                <div className="w-8 h-8 rounded-full bg-[#0070ba] text-white flex items-center justify-center font-bold text-xs">
+            {/* STEP 1: DESCRIBE THE BILL */}
+            <div className="glass-panel rounded-3xl p-6 sm:p-9 space-y-5">
+              <div className="flex items-center gap-3 pb-4 border-b border-white/[0.08]">
+                <div className="w-8 h-8 rounded-xl bg-[#0070ba] text-white flex items-center justify-center font-extrabold text-xs">
                   01
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Describe Your Project / Bill</h3>
-                  <p className="text-xs text-slate-400">Natural language input processed by Gemini AI</p>
+                  <h3 className="text-base font-black text-white">Describe Project & Pricing</h3>
+                  <p className="text-xs text-slate-300">Natural language input analyzed by Gemini 3.5 Flash</p>
                 </div>
               </div>
 
@@ -177,30 +178,30 @@ export default function Home() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-                className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#0070ba] transition"
+                className="w-full bg-black/40 border border-white/[0.08] rounded-2xl p-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#0070ba] focus:ring-1 focus:ring-[#0070ba] transition"
               />
 
               {error && (
-                <p className="text-xs text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                <p className="text-xs text-red-300 bg-red-500/15 p-3 rounded-xl border border-red-500/30">
                   {error}
                 </p>
               )}
 
-              {/* Presets */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  Or Test with a preset:
+              {/* Quick Presets */}
+              <div className="space-y-2">
+                <span className="text-[11px] uppercase font-bold text-slate-300 tracking-wider">
+                  Test Scenarios (1-Click):
                 </span>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {SAMPLE_PROMPTS.map((sample, i) => (
+                  {SAMPLE_PROMPTS.map((sample, idx) => (
                     <button
-                      key={i}
+                      key={idx}
                       type="button"
                       onClick={() => {
                         setPrompt(sample);
                         handleGenerate(sample);
                       }}
-                      className="cursor-pointer text-xs text-left bg-white/5 hover:bg-white/10 text-slate-300 p-2.5 rounded-lg border border-white/5 transition flex-1 truncate"
+                      className="cursor-pointer text-xs text-left bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white p-3 rounded-xl border border-white/[0.06] transition flex-1 truncate font-medium"
                     >
                       {sample}
                     </button>
@@ -212,33 +213,33 @@ export default function Home() {
                 <button
                   onClick={() => handleGenerate()}
                   disabled={loading || !prompt.trim()}
-                  className="btn-primary w-full sm:w-auto px-6 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="btn-craft-primary w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                      <RefreshCw className="w-4 h-4 animate-spin" />
                       Parsing with Gemini AI...
                     </>
                   ) : (
                     <>
                       Extract Invoice & Settle
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* STEP 2, 3, 4: RENDERED SEQUENTIALLY ONCE GENERATED */}
+            {/* STEP 2, 3, 4: SEQUENTIALLY DISPLAYED */}
             {invoice && (
-              <div id="step-2-section" className="space-y-8 animate-fade-in scroll-mt-20">
-                <div className="flex items-center gap-3 pt-4">
-                  <div className="w-8 h-8 rounded-full bg-[#0070ba]/20 text-[#38bdf8] flex items-center justify-center font-bold text-xs border border-[#0070ba]/40">
+              <div id="step-2-section" className="space-y-8 animate-fade-in scroll-mt-24">
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#0070ba]/20 text-[#38bdf8] flex items-center justify-center font-extrabold text-xs border border-[#0070ba]/40">
                     02
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">Generated Structured Invoice</h3>
-                    <p className="text-xs text-slate-400">Validated calculations with exportable PDF</p>
+                    <h3 className="text-base font-black text-white">Verified Structured Invoice</h3>
+                    <p className="text-xs text-slate-300">Ready for instant client settlement & PDF export</p>
                   </div>
                 </div>
 
@@ -247,16 +248,16 @@ export default function Home() {
             )}
           </div>
         ) : (
-          /* Merchant Ledger Tab */
-          <div className="bg-[#111827] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-xl">
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          /* Ledger Tab */
+          <div className="glass-panel rounded-3xl p-6 sm:p-9">
+            <div className="flex items-center justify-between pb-5 border-b border-white/[0.08]">
               <div>
-                <h2 className="text-lg font-bold text-white">Merchant Ledger</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Session settlement records</p>
+                <h2 className="text-xl font-black text-white">Merchant Settlement Ledger</h2>
+                <p className="text-xs text-slate-300 mt-0.5">Session records & confirmed PayPal transactions</p>
               </div>
               <div className="text-right">
-                <span className="text-[10px] uppercase font-bold text-slate-500 block">Total Settled</span>
-                <span className="text-lg font-mono font-bold text-emerald-400">
+                <span className="text-[11px] uppercase font-bold text-slate-400 block">Total Collected</span>
+                <span className="text-xl font-mono font-extrabold text-emerald-400">
                   ${history
                     .filter((i) => i.status === 'PAID')
                     .reduce((sum, i) => sum + i.totalAmount, 0)
@@ -266,47 +267,47 @@ export default function Home() {
             </div>
 
             {history.length === 0 ? (
-              <div className="text-center py-12 text-slate-500 text-xs">
-                No invoices recorded yet. Start in the Workflow tab.
+              <div className="text-center py-16 text-slate-400 text-xs">
+                No invoices in this session. Generate an invoice from the Workflow tab.
               </div>
             ) : (
-              <div className="overflow-x-auto mt-4">
+              <div className="overflow-x-auto mt-6">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-white/10 text-slate-500 uppercase text-[10px]">
-                      <th className="py-2.5 px-3">Invoice #</th>
-                      <th className="py-2.5 px-3">Client</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3 text-right">Amount</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
-                      <th className="py-2.5 px-3 text-right">Action</th>
+                    <tr className="border-b border-white/[0.08] text-slate-400 uppercase text-[11px]">
+                      <th className="py-3 px-3 font-bold">Invoice #</th>
+                      <th className="py-3 px-3 font-bold">Client</th>
+                      <th className="py-3 px-3 font-bold">Date</th>
+                      <th className="py-3 px-3 text-right font-bold">Amount</th>
+                      <th className="py-3 px-3 text-center font-bold">Status</th>
+                      <th className="py-3 px-3 text-right font-bold">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5 text-slate-300">
+                  <tbody className="divide-y divide-white/[0.04] text-slate-200">
                     {history.map((inv, idx) => (
-                      <tr key={idx} className="hover:bg-white/5 transition">
-                        <td className="py-3 px-3 font-mono font-semibold text-[#38bdf8]">{inv.invoiceNumber}</td>
-                        <td className="py-3 px-3 text-white font-medium">{inv.clientName}</td>
-                        <td className="py-3 px-3 text-slate-400">{inv.date}</td>
-                        <td className="py-3 px-3 text-right font-mono text-slate-200">${inv.totalAmount.toFixed(2)}</td>
-                        <td className="py-3 px-3 text-center">
+                      <tr key={idx} className="hover:bg-white/[0.03] transition">
+                        <td className="py-3.5 px-3 font-mono font-semibold text-[#38bdf8]">{inv.invoiceNumber}</td>
+                        <td className="py-3.5 px-3 text-white font-bold">{inv.clientName}</td>
+                        <td className="py-3.5 px-3 text-slate-300">{inv.date}</td>
+                        <td className="py-3.5 px-3 text-right font-mono font-bold text-white">${inv.totalAmount.toFixed(2)}</td>
+                        <td className="py-3.5 px-3 text-center">
                           {inv.status === 'PAID' ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                               PAID
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
                               PENDING
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-3 text-right">
+                        <td className="py-3.5 px-3 text-right">
                           <button
                             onClick={() => {
                               setInvoice(inv);
                               setActiveTab('flow');
                             }}
-                            className="cursor-pointer text-xs text-[#38bdf8] hover:underline"
+                            className="cursor-pointer text-xs font-bold text-[#38bdf8] hover:underline"
                           >
                             View & Settle →
                           </button>
@@ -322,10 +323,10 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-[#0b0f19] py-6 text-xs text-slate-500">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>PayGenie • PayPal AI Hackathon 2026</span>
-          <span>Integrated with PayPal Orders v2 & Gemini 3.5</span>
+      <footer className="border-t border-white/[0.08] bg-[#07090e] py-8 text-xs text-slate-400">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span className="font-bold text-slate-300">PayGenie • PayPal AI Hackathon 2026</span>
+          <span className="text-slate-400">PayPal Orders v2 SDK & Google Gemini 3.5 Integration</span>
         </div>
       </footer>
     </div>
