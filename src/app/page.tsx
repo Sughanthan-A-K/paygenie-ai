@@ -13,9 +13,12 @@ import {
   Zap,
   FileSpreadsheet,
   Receipt,
-  Sparkles
+  Sparkles,
+  Monitor,
+  Smartphone
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
+import GenieAssistant from '@/components/GenieAssistant';
 import { InvoiceData } from '@/types/invoice';
 
 const SAMPLE_PROMPTS = [
@@ -41,6 +44,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'create' | 'ledger'>('create');
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [deviceMode, setDeviceMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [genieStatus, setGenieStatus] = useState<'idle' | 'generating' | 'ready' | 'paid' | 'error'>('idle');
 
   useEffect(() => {
     if (document.documentElement.classList.contains('dark')) {
@@ -63,6 +68,7 @@ export default function Home() {
     if (!finalPrompt.trim()) return;
 
     setLoading(true);
+    setGenieStatus('generating');
     setError(null);
 
     try {
@@ -78,6 +84,7 @@ export default function Home() {
       }
 
       setInvoice(data.invoice);
+      setGenieStatus('ready');
       setHistory((prev) => [data.invoice, ...prev]);
       setActiveTab('create');
 
@@ -87,6 +94,7 @@ export default function Home() {
       }, 150);
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
+      setGenieStatus('error');
     } finally {
       setLoading(false);
     }
@@ -101,6 +109,7 @@ export default function Home() {
       paidAt: new Date().toLocaleString(),
     };
     setInvoice(updatedInvoice);
+    setGenieStatus('paid');
     setHistory((prev) =>
       prev.map((inv) =>
         inv.invoiceNumber === updatedInvoice.invoiceNumber ? updatedInvoice : inv
@@ -150,8 +159,36 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Controls: Theme & Verification status */}
-          <div className="flex items-center gap-3">
+          {/* Controls: Device Switcher + Theme Switch */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Device Switcher for Judges */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-full border border-slate-200 dark:border-slate-700">
+              <button
+                onClick={() => setDeviceMode('desktop')}
+                title="Desktop View"
+                className={`cursor-pointer p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1 transition ${
+                  deviceMode === 'desktop'
+                    ? 'bg-white dark:bg-slate-700 text-[#003087] dark:text-blue-300 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Desktop</span>
+              </button>
+              <button
+                onClick={() => setDeviceMode('mobile')}
+                title="Mobile Simulator View"
+                className={`cursor-pointer p-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs font-semibold flex items-center gap-1 transition ${
+                  deviceMode === 'mobile'
+                    ? 'bg-white dark:bg-slate-700 text-[#003087] dark:text-blue-300 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Mobile</span>
+              </button>
+            </div>
+
             <button
               onClick={toggleDarkMode}
               aria-label="Toggle theme"
@@ -160,7 +197,7 @@ export default function Home() {
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
-            <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-3.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+            <div className="hidden lg:flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800">
               <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
               <span>Sandbox Verified</span>
             </div>
@@ -168,8 +205,12 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main App Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 md:py-12">
+      {/* Main App Container with Dynamic Device Frame Mode */}
+      <main className={`flex-1 w-full mx-auto px-4 sm:px-6 py-8 md:py-12 transition-all duration-300 ${
+        deviceMode === 'mobile' 
+          ? 'max-w-md bg-slate-100 dark:bg-slate-950/80 my-4 sm:my-8 rounded-[48px] border-8 border-slate-900 shadow-2xl p-4 sm:p-6' 
+          : 'max-w-5xl'
+      }`}>
         
         {/* Mobile Tab Slider */}
         <div className="flex sm:hidden justify-center mb-6">
@@ -198,18 +239,18 @@ export default function Home() {
                 Agentic Invoice Intelligence
               </div>
 
-              <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-[#001435] dark:text-white leading-tight">
+              <h1 className={`${deviceMode === 'mobile' ? 'text-2xl font-black' : 'text-3xl sm:text-5xl font-black'} tracking-tight text-[#001435] dark:text-white leading-tight`}>
                 There’s a faster way to <br className="hidden sm:inline" />
                 <em className="italic font-serif text-[#003087] dark:text-blue-400">bill and get paid</em> with PayPal.
               </h1>
 
-              <p className="mt-3 text-slate-600 dark:text-slate-300 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+              <p className="mt-3 text-slate-600 dark:text-slate-300 text-xs sm:text-base max-w-xl mx-auto leading-relaxed">
                 Describe any project, sale, or hourly work naturally. Gemini AI structures line items, calculates discounts & taxes, and provides an instant PayPal checkout button.
               </p>
             </section>
 
             {/* Input Card — Clean PayPal Slate Plate */}
-            <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl mb-12">
+            <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 sm:p-8 shadow-xl mb-12">
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="prompt-input" className="text-xs font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Describe Job Or Client Purchase
@@ -225,7 +266,7 @@ export default function Home() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0070ba] transition"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4 text-xs sm:text-base text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#0070ba] transition"
               />
 
               {error && (
@@ -264,7 +305,7 @@ export default function Home() {
                 <button
                   onClick={() => handleGenerate()}
                   disabled={loading || !prompt.trim()}
-                  className="pp-pill-btn-primary w-full sm:w-auto text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="pp-pill-btn-primary w-full sm:w-auto text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {loading ? (
                     <>
@@ -285,8 +326,8 @@ export default function Home() {
             {invoice && (
               <div id="generated-invoice-container" className="max-w-3xl mx-auto mb-16 animate-fade-in scroll-mt-24">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-black text-[#001435] dark:text-white flex items-center gap-2">
-                    <Receipt className="w-6 h-6 text-[#003087] dark:text-blue-400" />
+                  <h2 className="text-lg sm:text-xl font-black text-[#001435] dark:text-white flex items-center gap-2">
+                    <Receipt className="w-5 h-5 sm:w-6 sm:h-6 text-[#003087] dark:text-blue-400" />
                     Generated Customer Invoice
                   </h2>
                 </div>
@@ -299,7 +340,7 @@ export default function Home() {
           <div className="max-w-4xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl">
             <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h2 className="text-2xl font-black text-[#001435] dark:text-white">
+                <h2 className="text-xl sm:text-2xl font-black text-[#001435] dark:text-white">
                   Merchant Transaction Ledger
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -391,6 +432,16 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* Floating Interactive Enterprise PayGenie Mascot */}
+      <GenieAssistant
+        status={genieStatus}
+        invoiceDetails={{
+          clientName: invoice?.clientName,
+          amount: invoice?.totalAmount,
+          transactionId: invoice?.paymentId,
+        }}
+      />
 
       {/* Clean Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-8 text-xs text-slate-500 dark:text-slate-400 transition-colors">
