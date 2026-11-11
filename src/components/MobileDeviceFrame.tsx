@@ -39,8 +39,15 @@ export default function MobileDeviceFrame({
   onPaymentSuccess,
   onDownloadPDF,
 }: MobileDeviceFrameProps) {
-  const [mobileTab, setMobileTab] = useState<'checkout' | 'chat'>('checkout');
+  const [mobileTab, setMobileTab] = useState<'chat' | 'checkout'>('chat');
   const [copied, setCopied] = useState(false);
+
+  // Auto-switch to Bill & Pay tab when invoice is successfully generated
+  React.useEffect(() => {
+    if (invoice) {
+      setMobileTab('checkout');
+    }
+  }, [invoice]);
 
   const handleCopyEmail = () => {
     if (invoice?.emailDraft) {
@@ -105,19 +112,8 @@ export default function MobileDeviceFrame({
               </div>
             </div>
 
-            {/* Mobile Tab Pills */}
+            {/* Mobile Tab Pills: First Prompt, then Bill & Pay */}
             <div className="flex bg-slate-200/80 p-0.5 rounded-full text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => setMobileTab('checkout')}
-                className={`px-3 py-1 rounded-full transition cursor-pointer ${
-                  mobileTab === 'checkout'
-                    ? 'bg-white text-[#003087] shadow-xs'
-                    : 'text-slate-700'
-                }`}
-              >
-                Bill & Pay
-              </button>
               <button
                 type="button"
                 onClick={() => setMobileTab('chat')}
@@ -128,6 +124,17 @@ export default function MobileDeviceFrame({
                 }`}
               >
                 Prompt
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('checkout')}
+                className={`px-3 py-1 rounded-full transition cursor-pointer ${
+                  mobileTab === 'checkout'
+                    ? 'bg-white text-[#003087] shadow-xs'
+                    : 'text-slate-700'
+                }`}
+              >
+                Bill & Pay
               </button>
             </div>
           </div>

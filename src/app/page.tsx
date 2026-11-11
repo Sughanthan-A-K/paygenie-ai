@@ -206,7 +206,7 @@ export default function Home() {
                   <span className="text-xs uppercase font-bold text-slate-700 tracking-wider">
                     Quick Scenario Presets:
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     {SAMPLE_PROMPTS.map((sample, idx) => (
                       <button
                         key={idx}
@@ -215,7 +215,7 @@ export default function Home() {
                           setPrompt(sample);
                           handleGenerate(sample);
                         }}
-                        className="cursor-pointer text-xs text-left bg-slate-50 hover:bg-blue-50/50 hover:border-blue-200 text-slate-700 p-3 rounded-xl border border-slate-200 transition font-medium line-clamp-2"
+                        className="cursor-pointer text-xs text-left bg-slate-50 hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-3.5 rounded-xl border border-slate-200 transition font-medium leading-relaxed"
                       >
                         {sample}
                       </button>
