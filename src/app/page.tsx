@@ -356,8 +356,20 @@ export default function Home() {
                     invoice={invoice}
                     loading={loading}
                     samplePrompts={SAMPLE_PROMPTS}
+                    history={history}
+                    isBothView={viewMode === 'both'}
                     onGenerate={handleGenerate}
                     onPaymentSuccess={handlePaymentSuccess}
+                    onSelectInvoice={(inv) => {
+                      setInvoice(inv);
+                      toast.info(`Loaded invoice ${inv.invoiceNumber} on mobile`);
+                    }}
+                    onUpdateInvoice={(updated) => {
+                      setInvoice(updated);
+                      setHistory((prev) =>
+                        prev.map((i) => i.invoiceNumber === updated.invoiceNumber ? updated : i)
+                      );
+                    }}
                   />
                 </div>
               )}
