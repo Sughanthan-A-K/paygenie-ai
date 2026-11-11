@@ -82,7 +82,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#fafbfc] text-[#001435] flex flex-col font-sans">
       {/* Official PayPal Enterprise Global Navigation */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
-        <div className="w-full px-4 sm:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           
           {/* Authentic PayPal Brand Monogram & Product Title */}
           <div className="flex items-center gap-3">
@@ -126,15 +126,15 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container: Wide Web Workspace + Fixed Right Mobile View */}
-      <main className="flex-1 w-full px-4 sm:px-8 py-8 sm:py-10">
+      {/* Main Container: Wide Web Workspace + Fixed Right Mobile View (Responsive & Professional) */}
+      <main className="flex-1 max-w-[1500px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
         {activeTab === 'create' ? (
-          <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* ======================================================== */}
-            {/* LEFT: EXPANDED WEB/DESKTOP WORKSPACE (Full Flex Grow)    */}
+            {/* LEFT: EXPANDED WEB/DESKTOP WORKSPACE (Cols 1 to 8: ~67%) */}
             {/* ======================================================== */}
-            <div className="flex-1 min-w-0 max-w-[1050px] space-y-8">
+            <div className="lg:col-span-8 space-y-8">
               
               {/* Web Header Badge */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-700">
@@ -268,9 +268,9 @@ export default function Home() {
             </div>
 
             {/* ======================================================== */}
-            {/* RIGHT: FIXED STICKY REALISTIC MOBILE PHONE VIEW         */}
+            {/* RIGHT: FIXED STICKY REALISTIC MOBILE PHONE (Cols 9 to 12) */}
             {/* ======================================================== */}
-            <div className="w-full lg:w-[410px] shrink-0 sticky top-24 self-start flex justify-end">
+            <div className="lg:col-span-4 sticky top-24 self-start">
               <MobileDeviceFrame
                 prompt={prompt}
                 setPrompt={setPrompt}
@@ -360,7 +360,7 @@ export default function Home() {
 
       {/* Official PayPal Enterprise Footer */}
       <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-[1500px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="font-bold text-[#001435]">PayGenie AI • PayPal AI Hackathon 2026</span>
           <span className="text-slate-500">Powered by PayPal Developer Platform & Google Gemini</span>
         </div>

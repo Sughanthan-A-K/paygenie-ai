@@ -182,7 +182,7 @@ export default function MobileDeviceFrame({
                               setPrompt(sample);
                               onGenerate(sample);
                             }}
-                            className="w-full cursor-pointer text-left text-[11px] bg-white hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-2.5 rounded-xl border border-slate-200 transition font-medium leading-snug line-clamp-2 shadow-2xs"
+                            className="w-full cursor-pointer text-left text-[11px] bg-white hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-2.5 rounded-xl border border-slate-200 transition font-medium leading-snug shadow-2xs"
                           >
                             {sample}
                           </button>
