@@ -25,6 +25,7 @@ interface MobileDeviceFrameProps {
   setPrompt: (val: string) => void;
   invoice: InvoiceData | null;
   loading: boolean;
+  samplePrompts?: string[];
   onGenerate: (text?: string) => void;
   onPaymentSuccess: (paymentId: string) => void;
   onDownloadPDF?: () => void;
@@ -35,6 +36,7 @@ export default function MobileDeviceFrame({
   setPrompt,
   invoice,
   loading,
+  samplePrompts = [],
   onGenerate,
   onPaymentSuccess,
   onDownloadPDF,
@@ -144,39 +146,71 @@ export default function MobileDeviceFrame({
             {mobileTab === 'chat' ? (
               /* Mobile Prompt / Live Typing Synced View */
               <div className="space-y-3">
-                <div className="bg-[#f5f7fa] p-3.5 rounded-2xl border border-slate-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-[#003087] uppercase tracking-wider">
-                      Live AI Prompt (Synced)
-                    </span>
+                <div className="bg-[#f5f7fa] p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-[#003087] text-white flex items-center justify-center font-bold text-[10px]">
+                        01
+                      </div>
+                      <span className="text-xs font-bold text-[#001435]">
+                        Describe Rates & Work
+                      </span>
+                    </div>
                     <Sparkles className="w-3.5 h-3.5 text-[#0070ba]" />
                   </div>
+
                   <textarea
                     rows={4}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Type invoice instructions here or on the desktop view..."
-                    className="w-full min-h-[90px] max-h-[160px] bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] focus:outline-none focus:border-[#0070ba] resize-none"
+                    className="w-full min-h-[90px] max-h-[140px] bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] focus:outline-none focus:border-[#0070ba] resize-none"
                   />
+
+                  {/* Mobile Quick Scenario Presets */}
+                  {samplePrompts.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">
+                        Quick Scenario Presets:
+                      </span>
+                      <div className="space-y-1.5">
+                        {samplePrompts.map((sample, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setPrompt(sample);
+                              onGenerate(sample);
+                            }}
+                            className="w-full cursor-pointer text-left text-[11px] bg-white hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-2.5 rounded-xl border border-slate-200 transition font-medium leading-snug line-clamp-2 shadow-2xs"
+                          >
+                            {sample}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     disabled={loading || !prompt.trim()}
                     onClick={() => onGenerate()}
-                    className="w-full pp-button-primary !py-2 !text-xs disabled:opacity-50"
+                    className="w-full pp-button-primary !py-2.5 !text-xs disabled:opacity-50 mt-1"
                   >
                     {loading ? (
                       <>
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        <span>Parsing...</span>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Parsing with Gemini AI...</span>
                       </>
                     ) : (
-                      <span>Generate on Mobile & Web</span>
+                      <span>Generate & Settle</span>
                     )}
                   </button>
                 </div>
 
-                <div className="text-[11px] text-slate-500 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
-                  ⚡ <strong>Two-way sync:</strong> Anything typed here will instantaneously sync to the Web view on the left, and vice versa.
+                <div className="text-[11px] text-slate-600 bg-blue-50/70 p-2.5 rounded-xl border border-blue-200 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
+                  <span><strong>Bi-directional sync:</strong> Live synced with Web workspace.</span>
                 </div>
               </div>
             ) : invoice ? (

@@ -276,6 +276,7 @@ export default function Home() {
                 setPrompt={setPrompt}
                 invoice={invoice}
                 loading={loading}
+                samplePrompts={SAMPLE_PROMPTS}
                 onGenerate={handleGenerate}
                 onPaymentSuccess={handlePaymentSuccess}
               />
