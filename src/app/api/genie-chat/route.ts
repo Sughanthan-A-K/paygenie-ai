@@ -5,7 +5,13 @@ const apiKey = process.env.GEMINI_API_KEY || '';
 
 export async function POST(req: Request) {
   try {
-    const { messages, userMessage } = await req.json();
+    const { 
+      messages, 
+      userMessage, 
+      currentInvoice, 
+      clientProfile,
+      preferredLanguage = 'English' 
+    } = await req.json();
 
     if (!userMessage && (!messages || messages.length === 0)) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
@@ -17,20 +23,35 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemInstruction = `
-You are "PayGenie" 🧞‍♂️ — a magical, witty, ultra-capable AI Genie built for PayPal billing, payments, and conversational invoicing.
-Your persona:
-- Warm, polite, playful genie persona. You can say things like "Your wish is my command, master!" or "Genie at your service!".
-- You understand and reply in English, Tamil, and Tanglish fluently!
-  - If the user greets in Tanglish (e.g. "Hi bro", "Enna panra", "Epdi iruka"), you reply naturally in cool Tanglish like a friendly tech-savvy Genie!
-  - Respect time of day (Good morning / afternoon / evening greetings based on user time).
-- You have dual intelligence:
-  1. CHAT MODE: If the user is just saying hello, asking who you are, chatting, or making casual conversation, reply conversationally as the Genie.
-  2. INVOICE CREATION MODE: If the user provides details about billing, hours worked, goods sold, clients, rates, or asks to generate an invoice, you will parse it AND return structured invoice data inside a JSON block.
+    const clientName = clientProfile?.name || 'Valued Client';
+    const clientEmail = clientProfile?.email || 'client@example.com';
+    const lang = preferredLanguage || clientProfile?.preferredLanguage || 'English';
 
-CRITICAL INSTRUCTIONS FOR INVOICE CREATION:
-If the user's message is asking to create/generate an invoice or describes billable work (e.g., "Billed Acme Tech $650...", "Create invoice for 5 hours React work at $50/hr for John"):
-Your response MUST end with a JSON code block strictly in this format:
+    const systemInstruction = `
+You are PayGenie AI — an intelligent, natural conversational billing copilot for PayPal Hackathon.
+CURRENT ACTIVE CLIENT:
+Name: "${clientName}"
+Email: "${clientEmail}"
+Company: "${clientProfile?.company || ''}"
+
+LANGUAGE PREFERENCE:
+The user selected "${lang}".
+- If "English": Reply in clear, polished, friendly professional English (ideal for hackathon judges & global clients).
+- If "Tanglish": Reply naturally in conversational Tanglish (Tamil words written in English script, e.g. "Vanakam bro! Invoice create pannitaen.").
+- If "Tamil": Reply in Tamil script.
+
+CAPABILITIES:
+1. CASUAL CONVERSATION:
+   - If user is greeting, asking how things work, or chatting, reply warmly and politely in the selected language "${lang}".
+   - DO NOT fabricate an invoice for casual greetings.
+   - Leave invoice JSON block empty.
+
+2. INVOICE CREATION OR EDITING:
+   - If user describes billable work, hours, rate, or edits:
+     - Automatically bind the invoice to client "${clientName}" and email "${clientEmail}".
+     - If the user asks to modify an existing invoice (e.g., "Add 10% tax", "Rate-ah $80 maathu", "Change due date"):
+       Use CURRENT_INVOICE_CONTEXT to accurately update it!
+     - You MUST append a JSON code block at the very end of your reply:
 \`\`\`json
 {
   "invoiceNumber": "INV-2026-XXXX",
@@ -38,8 +59,8 @@ Your response MUST end with a JSON code block strictly in this format:
   "dueDate": "YYYY-MM-DD",
   "sellerName": "Your Company / Studio",
   "sellerEmail": "billing@merchant.com",
-  "clientName": "Client Name",
-  "clientEmail": "client@example.com",
+  "clientName": "${clientName}",
+  "clientEmail": "${clientEmail}",
   "currency": "USD",
   "items": [
     {
@@ -56,19 +77,19 @@ Your response MUST end with a JSON code block strictly in this format:
   "taxPercentage": 0,
   "taxAmount": 0,
   "totalAmount": 100,
-  "notes": "Payment terms & notes",
+  "notes": "Payment terms & notes. Instant settlement via PayPal.",
   "emailDraft": {
     "subject": "Invoice from Merchant",
     "body": "Email body content"
   }
 }
 \`\`\`
-Before the JSON code block, write your genie message (in the language/tone of the user, e.g. "Itho unga invoice ready aaiduchu master! Instant PayPal link generate paniten!").
 
-If the user is NOT asking to generate an invoice, DO NOT output any json block, just reply cheerfully as PayGenie!
+Before the json block, write your conversational reply in "${lang}".
+
+CURRENT_INVOICE_CONTEXT: ${JSON.stringify(currentInvoice || null)}
 `;
 
-    // Construct conversation history
     const contents: any[] = [];
     if (messages && Array.isArray(messages)) {
       for (const msg of messages) {
@@ -85,7 +106,7 @@ If the user is NOT asking to generate an invoice, DO NOT output any json block, 
       });
     }
 
-    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemma-4-31b-it'];
     let lastError: any = null;
     let replyText = '';
 
@@ -110,28 +131,29 @@ If the user is NOT asking to generate an invoice, DO NOT output any json block, 
       throw lastError;
     }
 
-    // Check if response contains an invoice JSON block
     let parsedInvoice = null;
     const jsonMatch = replyText.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonMatch && jsonMatch[1]) {
       try {
         parsedInvoice = JSON.parse(jsonMatch[1]);
+        if (parsedInvoice && !parsedInvoice.status) {
+          parsedInvoice.status = currentInvoice?.status || 'PENDING';
+        }
       } catch (e) {
-        console.error('Failed to parse invoice json from genie response:', e);
+        console.error('Failed to parse invoice json:', e);
       }
     }
 
-    // Clean conversational reply text (remove the raw json block from user chat bubble)
     const cleanReply = replyText.replace(/```json[\s\S]*?```/, '').trim();
 
     return NextResponse.json({
-      reply: cleanReply || "Your wish is my command! ✨",
+      reply: cleanReply || 'Message processed!',
       invoice: parsedInvoice,
     });
   } catch (error: any) {
     console.error('Genie Chat API error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to communicate with PayGenie' },
+      { error: error.message || 'Failed to process AI message' },
       { status: 500 }
     );
   }

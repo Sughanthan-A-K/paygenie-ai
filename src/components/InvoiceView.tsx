@@ -138,34 +138,34 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#003087]" />
 
         {/* Invoice Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pb-6 border-b border-slate-200">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-[#003087] border border-slate-200">
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm font-bold px-3.5 py-1 rounded-full bg-slate-100 text-[#003087] border border-slate-200">
                 {invoice.invoiceNumber}
               </span>
               {invoice.status === 'PAID' ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> PAID VIA PAYPAL
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <CheckCircle2 className="w-4 h-4" /> PAID VIA PAYPAL
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                  <Clock className="w-3.5 h-3.5" /> AWAITING CLIENT PAYMENT
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  <Clock className="w-4 h-4" /> AWAITING CLIENT PAYMENT
                 </span>
               )}
             </div>
-            <h3 className="text-2xl font-extrabold text-[#001435] mt-3 tracking-tight">
+            <h3 className="text-3xl font-black text-[#001435] mt-3 tracking-tight">
               Invoice for <em className="italic text-[#003087]">{invoice.clientName}</em>
             </h3>
           </div>
 
-          <div className="sm:text-right bg-[#f5f7fa] p-4 rounded-2xl min-w-[170px]">
+          <div className="sm:text-right bg-[#f5f7fa] p-5 rounded-2xl min-w-[200px]">
             <span className="text-xs uppercase tracking-wider text-slate-500 font-bold block">
               Total Amount
             </span>
-            <div className="text-3xl font-black text-[#003087] mt-1 tracking-tight">
+            <div className="text-4xl font-black text-[#003087] mt-1 tracking-tight">
               ${invoice.totalAmount.toFixed(2)}
-              <span className="text-xs font-normal text-slate-500 ml-1">
+              <span className="text-sm font-normal text-slate-500 ml-1.5">
                 {invoice.currency || 'USD'}
               </span>
             </div>
@@ -173,40 +173,40 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
         </div>
 
         {/* Counterparty Information */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6 text-xs">
-          <div className="p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6 text-sm">
+          <div className="p-5 rounded-2xl bg-[#f5f7fa] border border-slate-200">
+            <span className="text-xs uppercase tracking-wider font-bold text-slate-500 block mb-1">
               Billed From (You / Merchant)
             </span>
-            <p className="font-bold text-[#001435] text-sm">{invoice.sellerName}</p>
-            <p className="text-slate-500 mt-0.5">{invoice.sellerEmail || 'billing@merchant.com'}</p>
+            <p className="font-bold text-[#001435] text-base">{invoice.sellerName}</p>
+            <p className="text-slate-500 text-sm mt-0.5">{invoice.sellerEmail || 'billing@merchant.com'}</p>
           </div>
-          <div className="p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80">
-            <span className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+          <div className="p-5 rounded-2xl bg-[#f5f7fa] border border-slate-200">
+            <span className="text-xs uppercase tracking-wider font-bold text-slate-500 block mb-1">
               Billed To (Customer)
             </span>
-            <p className="font-bold text-[#001435] text-sm">{invoice.clientName}</p>
-            <p className="text-slate-500 mt-0.5">{invoice.clientEmail}</p>
+            <p className="font-bold text-[#001435] text-base">{invoice.clientName}</p>
+            <p className="text-slate-500 text-sm mt-0.5">{invoice.clientEmail}</p>
           </div>
         </div>
 
         {/* Timeline & Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600 mb-6 pb-6 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-600 mb-6 pb-6 border-b border-slate-200">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[#0070ba]" />
-              <span>Issue: <strong className="text-[#001435]">{invoice.date}</strong></span>
+              <span>Issue: <strong className="text-[#001435] font-semibold">{invoice.date}</strong></span>
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-[#0070ba]" />
-              <span>Due: <strong className="text-[#001435]">{invoice.dueDate}</strong></span>
+              <span>Due: <strong className="text-[#001435] font-semibold">{invoice.dueDate}</strong></span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={handleCopyPaymentLink}
-              className="cursor-pointer pp-button-secondary text-xs"
+              className="cursor-pointer pp-button-secondary !py-2 !px-4 !text-xs font-bold"
             >
               {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Link2 className="w-4 h-4" />}
               <span>{copiedLink ? 'Link Copied!' : 'Copy Client Pay Link'}</span>
@@ -214,7 +214,7 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
             <button
               onClick={handleDownloadPDF}
               disabled={isDownloading}
-              className="cursor-pointer pp-button-secondary text-xs"
+              className="cursor-pointer pp-button-secondary !py-2 !px-4 !text-xs font-bold"
             >
               <Download className="w-4 h-4" />
               <span>{isDownloading ? 'Exporting...' : 'PDF Invoice'}</span>
@@ -224,22 +224,22 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
 
         {/* Line Items Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500 uppercase text-[11px]">
-                <th className="py-2.5 px-3 font-bold">Description</th>
-                <th className="py-2.5 px-3 text-center font-bold">Qty</th>
-                <th className="py-2.5 px-3 text-right font-bold">Rate</th>
-                <th className="py-2.5 px-3 text-right font-bold">Amount</th>
+              <tr className="border-b-2 border-slate-200 text-slate-500 uppercase text-xs tracking-wider">
+                <th className="py-3 px-4 font-bold">Description</th>
+                <th className="py-3 px-4 text-center font-bold">Qty</th>
+                <th className="py-3 px-4 text-right font-bold">Rate</th>
+                <th className="py-3 px-4 text-right font-bold">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
+            <tbody className="divide-y divide-slate-100 text-slate-800">
               {invoice.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="py-3 px-3 font-semibold text-[#001435]">{item.description}</td>
-                  <td className="py-3 px-3 text-center text-slate-500">{item.quantity}</td>
-                  <td className="py-3 px-3 text-right text-slate-500">${(item.unitPrice || 0).toFixed(2)}</td>
-                  <td className="py-3 px-3 text-right font-bold text-[#001435]">${(item.total || 0).toFixed(2)}</td>
+                <tr key={idx} className="hover:bg-slate-50/50">
+                  <td className="py-4 px-4 font-bold text-base text-[#001435]">{item.description}</td>
+                  <td className="py-4 px-4 text-center text-slate-600 font-medium text-sm">{item.quantity}</td>
+                  <td className="py-4 px-4 text-right text-slate-600 font-medium text-sm">${(item.unitPrice || 0).toFixed(2)}</td>
+                  <td className="py-4 px-4 text-right font-black text-base text-[#001435]">${(item.total || 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -247,32 +247,32 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
         </div>
 
         {/* Financial Summary Calculation */}
-        <div className="mt-6 pt-4 border-t border-slate-200 flex flex-col items-end space-y-1.5 text-xs">
-          <div className="flex justify-between w-64 text-slate-600">
+        <div className="mt-8 pt-6 border-t border-slate-200 flex flex-col items-end space-y-2.5 text-sm">
+          <div className="flex justify-between w-72 text-slate-600 font-medium">
             <span>Subtotal:</span>
-            <span className="font-semibold">${invoice.subtotal.toFixed(2)}</span>
+            <span className="font-bold text-slate-800">${invoice.subtotal.toFixed(2)}</span>
           </div>
           {invoice.discountAmount > 0 && (
-            <div className="flex justify-between w-64 text-emerald-600">
+            <div className="flex justify-between w-72 text-emerald-600 font-medium">
               <span>Discount ({invoice.discountPercentage}%):</span>
-              <span className="font-semibold">-${invoice.discountAmount.toFixed(2)}</span>
+              <span className="font-bold">-${invoice.discountAmount.toFixed(2)}</span>
             </div>
           )}
           {invoice.taxAmount > 0 && (
-            <div className="flex justify-between w-64 text-slate-600">
+            <div className="flex justify-between w-72 text-slate-600 font-medium">
               <span>Tax ({invoice.taxPercentage}%):</span>
-              <span className="font-semibold">+${invoice.taxAmount.toFixed(2)}</span>
+              <span className="font-bold text-slate-800">+${invoice.taxAmount.toFixed(2)}</span>
             </div>
           )}
-          <div className="flex justify-between w-64 pt-2 border-t-2 border-slate-200 text-base font-black text-[#001435]">
+          <div className="flex justify-between w-72 pt-3 border-t-2 border-slate-200 text-lg font-black text-[#001435]">
             <span>Total Due:</span>
-            <span className="text-[#003087]">${invoice.totalAmount.toFixed(2)}</span>
+            <span className="text-[#003087] text-xl">${invoice.totalAmount.toFixed(2)}</span>
           </div>
         </div>
 
         {invoice.notes && (
-          <div className="mt-6 p-4 rounded-2xl bg-[#f5f7fa] border border-slate-200/80 text-xs text-slate-600">
-            <span className="font-bold text-[#001435] block mb-0.5">Payment Terms & Notes:</span>
+          <div className="mt-8 p-5 rounded-2xl bg-[#f5f7fa] border border-slate-200 text-sm text-slate-700 leading-relaxed">
+            <span className="font-bold text-[#001435] block mb-1">Payment Terms & Notes:</span>
             {invoice.notes}
           </div>
         )}
@@ -280,33 +280,33 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
 
       {/* Merchant Action: Dispatch Email */}
       {invoice.emailDraft && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#0070ba]/10 text-[#0070ba] flex items-center justify-center font-black text-xs">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-10 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-full bg-[#0070ba]/10 text-[#0070ba] flex items-center justify-center font-black text-sm">
                 03
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#001435]">AI Client Dispatch Email</h3>
-                <p className="text-xs text-slate-500">Pick a tone preset or customize text before sending to client</p>
+                <h3 className="text-lg font-bold text-[#001435]">AI Client Dispatch Email</h3>
+                <p className="text-sm text-slate-500">Pick a tone preset or customize text before sending to client</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   if (isEditingEmail) handleSaveEmail();
                   else setIsEditingEmail(true);
                 }}
-                className="cursor-pointer text-xs font-bold px-3 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-700 transition"
+                className="cursor-pointer text-sm font-bold px-4 py-2 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-700 transition"
               >
                 {isEditingEmail ? 'Save Custom Text' : 'Edit Email'}
               </button>
 
               <button
                 onClick={handleCopyEmail}
-                className="cursor-pointer pp-button-secondary text-xs"
+                className="cursor-pointer pp-button-secondary !py-2 !px-4 !text-sm font-bold"
               >
                 {copiedEmail ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedEmail ? 'Copied' : 'Copy Email'}</span>
@@ -314,18 +314,18 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Tone Preset:</span>
-            <div className="flex gap-1.5">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="font-bold text-slate-600 uppercase tracking-wider text-xs">Tone Preset:</span>
+            <div className="flex gap-2">
               {(['formal', 'friendly', 'urgent'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => applyEmailTemplate(t)}
-                  className={`cursor-pointer px-3 py-1 rounded-full text-xs font-bold transition capitalize ${
+                  className={`cursor-pointer px-4 py-1.5 rounded-full text-sm font-bold transition capitalize ${
                     activeTemplate === t
                       ? 'bg-[#003087] text-white shadow-2xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   {t}
@@ -334,30 +334,30 @@ export default function InvoiceView({ invoice, onUpdateInvoice }: InvoiceViewPro
             </div>
           </div>
 
-          <div className="bg-[#f5f7fa] p-5 rounded-2xl border border-slate-200/80 text-xs text-slate-700 space-y-3">
+          <div className="bg-[#f5f7fa] p-6 rounded-2xl border border-slate-200 text-sm text-slate-800 space-y-4">
             {isEditingEmail ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <input
                   type="text"
                   value={emailSubject}
                   onChange={(e) => setEmailSubject(e.target.value)}
                   placeholder="Email Subject..."
-                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] font-bold focus:outline-none focus:border-[#0070ba]"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-3 text-sm text-[#001435] font-bold focus:outline-none focus:border-[#0070ba]"
                 />
                 <textarea
                   rows={6}
                   value={emailBody}
                   onChange={(e) => setEmailBody(e.target.value)}
                   placeholder="Email Body..."
-                  className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-700 font-sans focus:outline-none focus:border-[#0070ba]"
+                  className="w-full bg-white border border-slate-300 rounded-xl p-3.5 text-sm text-slate-800 font-sans focus:outline-none focus:border-[#0070ba] leading-relaxed"
                 />
               </div>
             ) : (
               <>
-                <p className="border-b border-slate-200 pb-2 font-medium">
+                <p className="border-b border-slate-200 pb-3 text-base font-semibold">
                   <span className="text-slate-500 font-bold">Subject:</span> {emailSubject}
                 </p>
-                <div className="whitespace-pre-line leading-relaxed font-sans text-slate-600">
+                <div className="whitespace-pre-line leading-relaxed font-sans text-slate-700 text-sm sm:text-base">
                   {emailBody}
                 </div>
               </>

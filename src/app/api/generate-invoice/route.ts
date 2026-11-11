@@ -24,19 +24,26 @@ export async function POST(req: Request) {
     const ai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
-You are an expert AI Billing & Invoicing specialist for PayGenie.
-Given a natural language prompt from a freelancer or business owner describing work done or goods sold,
-parse and structure it into a clean, complete professional invoice data object.
+You are an expert AI Billing & Invoicing specialist for PayGenie (PayPal Billing Assistant).
+Analyze the user's input carefully.
 
-Ensure you:
-1. Generate an invoice number like "INV-2026-XXXX".
-2. Set date to current date (YYYY-MM-DD) and due date (typically 7 to 14 days out).
-3. If seller name is unspecified, default to "Your Company / Studio".
-4. If client name or email is missing, provide reasonable placeholders (e.g. "Valued Client", "client@example.com").
-5. Parse line items, calculate quantities, unit prices, discounts, taxes (if mentioned or default to 0%), and total sum.
-6. Provide polite notes/terms (e.g., "Thank you for your business! Payment due upon receipt via PayPal.").
-7. Draft a friendly, professional notification email that can be sent to the client with payment link details.
-Currency must default to "USD" unless specified.
+IMPORTANT LOGIC:
+1. CHECK INTENT FIRST:
+   Determine if the user's prompt is actually describing billable work, services rendered, products sold, an invoice request, or commercial billing terms.
+   - If the input is just casual conversation, greetings (e.g. "Vanakamdi maapla pondicherry la irunthu", "Hi bro", "Hello", "How are you?"), jokes, gibberish, or completely non-invoicing chatter:
+     DO NOT fabricate a random fake invoice. Instead, return a friendly AI conversational reply in the field "chatReply" and leave "isInvoice" as false. Reply in the same language/tone as the user (English, Tamil, Tanglish).
+   - If the input is indeed billable work, services, hours, or products (even if in casual English, Tamil, or Tanglish like "5 mani neram UI design pannadhuku $200 podu bro"):
+     Set "isInvoice" to true and parse into a clean structured invoice data object.
+
+2. WHEN CREATING AN INVOICE ("isInvoice": true):
+   - Generate invoice number like "INV-2026-XXXX".
+   - Set date to current date (YYYY-MM-DD) and due date (typically 7 to 14 days out).
+   - If seller name is unspecified, default to "Your Company / Studio".
+   - If client name or email is missing, provide reasonable placeholders or infer from context.
+   - Parse line items, calculate quantities, unit prices, discounts, taxes (if mentioned or default to 0%), and total sum.
+   - Currency defaults to "USD" unless INR or another currency is mentioned.
+   - Draft a polite notification email draft in "emailDraft".
+   - Provide a short friendly confirmation message in "chatReply" (e.g., "Got it! Generated invoice for your design work with instant PayPal payment link.").
 `;
 
     const modelsToTry = ['gemini-3.5-flash', 'gemini-3.8-flash', 'gemma-4-31b-it'];
@@ -54,6 +61,8 @@ Currency must default to "USD" unless specified.
             responseSchema: {
               type: Type.OBJECT,
               properties: {
+                isInvoice: { type: Type.BOOLEAN, description: 'True if input contains billing/invoice details; false if casual chatter/greeting' },
+                chatReply: { type: Type.STRING, description: 'Friendly conversational reply to the user in their language (Tanglish/Tamil/English)' },
                 invoiceNumber: { type: Type.STRING },
                 date: { type: Type.STRING },
                 dueDate: { type: Type.STRING },
@@ -89,21 +98,9 @@ Currency must default to "USD" unless specified.
                     subject: { type: Type.STRING },
                     body: { type: Type.STRING },
                   },
-                  required: ['subject', 'body'],
                 },
               },
-              required: [
-                'invoiceNumber',
-                'date',
-                'dueDate',
-                'sellerName',
-                'clientName',
-                'items',
-                'currency',
-                'subtotal',
-                'totalAmount',
-                'emailDraft',
-              ],
+              required: ['isInvoice', 'chatReply'],
             },
           },
         });
@@ -140,10 +137,23 @@ Currency must default to "USD" unless specified.
       cleanedText = cleanedText.substring(firstBrace, lastBrace + 1);
     }
 
-    const invoiceJson = JSON.parse(cleanedText);
-    invoiceJson.status = 'PENDING';
+    const parsedResult = JSON.parse(cleanedText);
 
-    return NextResponse.json({ invoice: invoiceJson });
+    if (!parsedResult.isInvoice) {
+      return NextResponse.json({
+        isInvoice: false,
+        chatReply: parsedResult.chatReply || "Vanakam bro! Invoice details edhavathu irundha sollunga, udane calculate panni PayPal invoice ready panren!",
+        invoice: null,
+      });
+    }
+
+    parsedResult.status = 'PENDING';
+
+    return NextResponse.json({
+      isInvoice: true,
+      chatReply: parsedResult.chatReply || "Invoice successfully generated!",
+      invoice: parsedResult,
+    });
   } catch (error: any) {
     console.error('Invoice Generation Error:', error);
     return NextResponse.json(

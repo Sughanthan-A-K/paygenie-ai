@@ -10,7 +10,7 @@ import {
   Wifi,
   Battery
 } from 'lucide-react';
-import { PayPalButtons } from '@paypal/react-paypal-js';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import confetti from 'canvas-confetti';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ export default function ClientPayPortal() {
 
   useEffect(() => {
     try {
+      // 1. Try checking direct flat invoices list
       const stored = localStorage.getItem('paygenie_invoices');
       if (stored) {
         const invoices: InvoiceData[] = JSON.parse(stored);
@@ -32,6 +33,27 @@ export default function ClientPayPortal() {
           setInvoice(match);
           setLoading(false);
           return;
+        }
+      }
+
+      // 2. Also check across all clients roster
+      const storedClients = localStorage.getItem('paygenie_clients_v2');
+      if (storedClients) {
+        const clients = JSON.parse(storedClients);
+        for (const c of clients) {
+          const match = (c.invoices || []).find((i: InvoiceData) => i.invoiceNumber === invoiceId);
+          if (match) {
+            setInvoice(match);
+            setLoading(false);
+            return;
+          }
+          // Also check drafts inside messages
+          const draftMatch = (c.messages || []).find((m: any) => m.invoiceDraft?.invoiceNumber === invoiceId)?.invoiceDraft;
+          if (draftMatch) {
+            setInvoice(draftMatch);
+            setLoading(false);
+            return;
+          }
         }
       }
     } catch (e) {
@@ -122,7 +144,7 @@ export default function ClientPayPortal() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center text-xs text-slate-400">
+      <div className="min-h-screen bg-[#f5f7fa] flex items-center justify-center text-sm font-bold text-slate-500">
         Loading client checkout...
       </div>
     );
@@ -131,33 +153,30 @@ export default function ClientPayPortal() {
   if (!invoice) return null;
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-[#001435] flex flex-col items-center justify-center p-4 sm:p-8 font-sans">
+    <div className="min-h-screen bg-[#f0f4f8] text-[#001435] flex flex-col items-center justify-center p-4 sm:p-8 font-sans">
       
-      {/* Top Controls Bar */}
-      <div className="w-full max-w-[390px] mx-auto mb-4 flex items-center justify-between text-xs">
-        <Link 
-          href="/" 
-          className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white font-semibold transition"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Merchant Workspace</span>
-        </Link>
-        <span className="inline-flex items-center gap-1 font-bold text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-500/30 text-[11px]">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>PayPal Verified Link</span>
+      {/* Top Security Verification Bar (Pure Client Facing - No Merchant Links) */}
+      <div className="w-full max-w-[400px] mx-auto mb-4 flex items-center justify-between text-xs px-2">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-slate-600 font-bold text-xs">Official Merchant Checkout</span>
+        </div>
+        <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-300 text-xs shadow-2xs">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>PayPal Verified 256-Bit</span>
         </span>
       </div>
 
-      {/* Realistic Smartphone Chassis Frame (Titanium Bezel) */}
-      <div className="relative mx-auto w-full max-w-[390px] rounded-[52px] bg-[#1a2234] p-3.5 shadow-2xl ring-1 ring-slate-700/80">
+      {/* Realistic Smartphone Chassis Frame (Polished Pearl & Titanium Border) */}
+      <div className="relative mx-auto w-full max-w-[400px] rounded-[52px] bg-slate-900 p-3.5 shadow-2xl ring-1 ring-slate-300">
         
         {/* Device Outer Edge Physical Buttons */}
-        <div className="absolute -left-1 top-24 h-12 w-1 rounded-l bg-slate-600" />
-        <div className="absolute -left-1 top-40 h-12 w-1 rounded-l bg-slate-600" />
-        <div className="absolute -right-1 top-32 h-16 w-1 rounded-r bg-slate-600" />
+        <div className="absolute -left-1 top-24 h-12 w-1 rounded-l bg-slate-500" />
+        <div className="absolute -left-1 top-40 h-12 w-1 rounded-l bg-slate-500" />
+        <div className="absolute -right-1 top-32 h-16 w-1 rounded-r bg-slate-500" />
 
         {/* Inner Phone Screen Container */}
-        <div className="relative overflow-hidden rounded-[40px] bg-white border border-slate-200 h-[720px] flex flex-col text-[#001435]">
+        <div className="relative overflow-hidden rounded-[40px] bg-white border border-slate-200 h-[740px] flex flex-col text-[#001435]">
           
           {/* iOS / Smartphone Status Bar */}
           <div className="h-11 bg-white flex items-center justify-between px-6 pt-2 shrink-0 z-20">
@@ -307,49 +326,10 @@ export default function ClientPayPortal() {
                   </div>
                 </div>
               ) : (
-                <div>
-                  <PayPalButtons
-                    style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 44, color: 'gold' }}
-                    createOrder={async () => {
-                      try {
-                        const res = await fetch('/api/paypal/create-order', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            amount: invoice.totalAmount,
-                            currency: invoice.currency || 'USD',
-                            invoiceNumber: invoice.invoiceNumber,
-                            clientName: invoice.clientName,
-                          }),
-                        });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
-                        return data.orderId;
-                      } catch (err: any) {
-                        toast.error(err.message || 'PayPal Checkout failed');
-                        throw err;
-                      }
-                    }}
-                    onApprove={async (data) => {
-                      try {
-                        const res = await fetch('/api/paypal/capture-order', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ orderId: data.orderID }),
-                        });
-                        const captureData = await res.json();
-                        if (!res.ok) throw new Error(captureData.error || 'Capture failed');
-                        handlePaymentSuccess(captureData.captureId || data.orderID);
-                      } catch (err: any) {
-                        toast.error(err.message || 'Payment capture failed');
-                      }
-                    }}
-                    onError={(err) => {
-                      console.error('PayPal error:', err);
-                      toast.error('PayPal Checkout encountered an issue.');
-                    }}
-                  />
-                </div>
+                <PayPalButtonsContainer
+                  invoice={invoice}
+                  onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
+                />
               )}
             </div>
 
@@ -363,6 +343,80 @@ export default function ClientPayPortal() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function PayPalButtonsContainer({
+  invoice,
+  onSuccess,
+}: {
+  invoice: InvoiceData;
+  onSuccess: (paymentId: string) => void;
+}) {
+  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+
+  if (isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 space-y-2 bg-slate-50 rounded-xl border border-slate-200">
+        <div className="w-6 h-6 border-2 border-[#0070ba] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs font-semibold text-slate-500">Connecting to PayPal Sandbox...</span>
+      </div>
+    );
+  }
+
+  if (isRejected) {
+    return (
+      <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-200 text-xs font-medium text-center">
+        Unable to load PayPal Checkout. Please check network.
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      <PayPalButtons
+        forceReRender={[invoice.invoiceNumber, invoice.totalAmount, invoice.currency]}
+        style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 44, color: 'gold' }}
+        createOrder={async () => {
+          try {
+            const res = await fetch('/api/paypal/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount: invoice.totalAmount,
+                currency: invoice.currency || 'USD',
+                invoiceNumber: invoice.invoiceNumber,
+                clientName: invoice.clientName,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
+            return data.orderId;
+          } catch (err: any) {
+            toast.error(err.message || 'PayPal Checkout failed');
+            throw err;
+          }
+        }}
+        onApprove={async (data) => {
+          try {
+            const res = await fetch('/api/paypal/capture-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId: data.orderID }),
+            });
+            const captureData = await res.json();
+            if (!res.ok) throw new Error(captureData.error || 'Capture failed');
+            onSuccess(captureData.captureId || data.orderID);
+          } catch (err: any) {
+            toast.error(err.message || 'Payment capture failed');
+          }
+        }}
+        onError={(err) => {
+          console.error('PayPal error:', err);
+          toast.error('PayPal Checkout encountered an issue.');
+        }}
+      />
     </div>
   );
 }
