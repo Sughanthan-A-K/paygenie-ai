@@ -242,53 +242,51 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
             <p className="text-xs text-slate-500 mt-2">{invoice.paidAt}</p>
           </div>
         ) : (
-          <div className="max-w-md mx-auto text-center">
-            <div className="relative z-10 overflow-hidden rounded-full p-0.5">
-              <PayPalButtons
-                style={{ layout: 'vertical', shape: 'pill', label: 'paypal', height: 48, color: 'gold' }}
-                createOrder={async () => {
-                  try {
-                    const res = await fetch('/api/paypal/create-order', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        amount: invoice.totalAmount,
-                        currency: invoice.currency || 'USD',
-                        invoiceNumber: invoice.invoiceNumber,
-                        clientName: invoice.clientName,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
-                    return data.orderId;
-                  } catch (err: any) {
-                    toast.error(err.message || 'PayPal Checkout encountered an issue.');
-                    throw err;
-                  }
-                }}
-                onApprove={async (data) => {
-                  try {
-                    const res = await fetch('/api/paypal/capture-order', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ orderId: data.orderID }),
-                    });
-                    const captureData = await res.json();
-                    if (!res.ok) throw new Error(captureData.error || 'Failed to capture payment');
+          <div className="max-w-md mx-auto">
+            <PayPalButtons
+              style={{ layout: 'vertical', shape: 'rect', height: 48, color: 'gold' }}
+              createOrder={async () => {
+                try {
+                  const res = await fetch('/api/paypal/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      amount: invoice.totalAmount,
+                      currency: invoice.currency || 'USD',
+                      invoiceNumber: invoice.invoiceNumber,
+                      clientName: invoice.clientName,
+                    }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
+                  return data.orderId;
+                } catch (err: any) {
+                  toast.error(err.message || 'PayPal Checkout encountered an issue.');
+                  throw err;
+                }
+              }}
+              onApprove={async (data) => {
+                try {
+                  const res = await fetch('/api/paypal/capture-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderId: data.orderID }),
+                  });
+                  const captureData = await res.json();
+                  if (!res.ok) throw new Error(captureData.error || 'Failed to capture payment');
 
-                    fireSuccessCelebration();
-                    toast.success('Payment captured successfully via PayPal!');
-                    onPaymentSuccess(captureData.captureId || data.orderID);
-                  } catch (err: any) {
-                    toast.error(err.message || 'Failed to capture payment');
-                  }
-                }}
-                onError={(err) => {
-                  console.error('PayPal Checkout error:', err);
-                  toast.error('PayPal Checkout encountered an issue or was closed.');
-                }}
-              />
-            </div>
+                  fireSuccessCelebration();
+                  toast.success('Payment captured successfully via PayPal!');
+                  onPaymentSuccess(captureData.captureId || data.orderID);
+                } catch (err: any) {
+                  toast.error(err.message || 'Failed to capture payment');
+                }
+              }}
+              onError={(err) => {
+                console.error('PayPal Checkout error:', err);
+                toast.error('PayPal Checkout encountered an issue or was closed.');
+              }}
+            />
           </div>
         )}
       </div>

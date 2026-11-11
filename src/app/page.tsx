@@ -82,7 +82,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#fafbfc] text-[#001435] flex flex-col font-sans">
       {/* Official PayPal Enterprise Global Navigation */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+        <div className="w-full px-4 sm:px-8 h-20 flex items-center justify-between">
           
           {/* Authentic PayPal Brand Monogram & Product Title */}
           <div className="flex items-center gap-3">
@@ -126,15 +126,15 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Container: 60% / 40% Grid Showcase */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
+      {/* Main Container: Wide Web Workspace + Fixed Right Mobile View */}
+      <main className="flex-1 w-full px-4 sm:px-8 py-8 sm:py-10">
         {activeTab === 'create' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
             
             {/* ======================================================== */}
-            {/* LEFT COLUMN: ~60% WEB/DESKTOP WORKSPACE (Cols 1 to 7)    */}
+            {/* LEFT: EXPANDED WEB/DESKTOP WORKSPACE (Full Flex Grow)    */}
             {/* ======================================================== */}
-            <div className="lg:col-span-7 space-y-8">
+            <div className="flex-1 min-w-0 max-w-[1050px] space-y-8">
               
               {/* Web Header Badge */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-700">
@@ -268,9 +268,9 @@ export default function Home() {
             </div>
 
             {/* ======================================================== */}
-            {/* RIGHT COLUMN: ~40% REALISTIC MOBILE PHONE VIEW (Cols 8-12) */}
+            {/* RIGHT: FIXED STICKY REALISTIC MOBILE PHONE VIEW         */}
             {/* ======================================================== */}
-            <div className="lg:col-span-5 sticky top-24">
+            <div className="w-full lg:w-[410px] shrink-0 sticky top-24 self-start flex justify-end">
               <MobileDeviceFrame
                 prompt={prompt}
                 setPrompt={setPrompt}

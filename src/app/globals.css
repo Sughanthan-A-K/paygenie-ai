@@ -117,14 +117,15 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-/* PayPal Clean Outline Container */
-iframe[name^="__zoid__paypal_buttons__"] {
-  border-radius: 1000px !important;
-  outline: none !important;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-div:has(> iframe[name^="__zoid__paypal_buttons__"]) {
-  border: none !important;
+/* PayPal Clean Outline Container */
+iframe[name^="__zoid__paypal_buttons__"] {
   outline: none !important;
-  box-shadow: none !important;
 }

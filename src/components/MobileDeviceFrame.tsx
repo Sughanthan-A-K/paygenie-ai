@@ -141,8 +141,8 @@ export default function MobileDeviceFrame({
             </div>
           </div>
 
-          {/* Scrollable Mobile Screen Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+          {/* Scrollable Mobile Screen Body without visible scrollbar */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs no-scrollbar">
             {mobileTab === 'chat' ? (
               /* Mobile Prompt / Live Typing Synced View */
               <div className="space-y-3">
@@ -321,9 +321,9 @@ export default function MobileDeviceFrame({
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-full py-0.5">
+                    <div>
                       <PayPalButtons
-                        style={{ layout: 'vertical', shape: 'pill', label: 'paypal', height: 42, color: 'gold' }}
+                        style={{ layout: 'vertical', shape: 'rect', height: 42, color: 'gold' }}
                         createOrder={async () => {
                           try {
                             const res = await fetch('/api/paypal/create-order', {
