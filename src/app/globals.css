@@ -117,12 +117,17 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(1.5deg);
+  }
 }
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }
 
 /* PayPal Clean Outline Container */

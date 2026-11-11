@@ -1,123 +1,94 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
-  ArrowRight, 
-  RefreshCw, 
-  Lock, 
-  Sparkles,
-  Monitor,
-  CheckCircle2,
-  FileSpreadsheet,
-  Trash2,
-  Clock,
-  Link2,
-  ExternalLink
+  Send, 
+  Sparkles, 
+  FileSpreadsheet, 
+  Trash2, 
+  Clock, 
+  CheckCircle2, 
+  ExternalLink,
+  Bot,
+  RefreshCw,
+  User,
+  Wand2
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import ClientPayPortal from '@/components/ClientPayPortal';
+import GenieAvatar from '@/components/GenieAvatar';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
 
-const SAMPLE_PROMPTS = [
-  "Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount.",
-  "Designed brand identity & 5 custom illustrations for Bloom Bakery for $380, due in 10 days.",
-  "Cloud consultation for Nexus Labs: 3 architecture review sessions at $150 each plus $50 server setup fee."
-];
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  invoice?: InvoiceData | null;
+  timestamp: string;
+}
 
 function MainAppContent() {
   const searchParams = useSearchParams();
   const invoiceParam = searchParams.get('invoice');
 
-  // If URL has ?invoice=INV-XXXX, render ONLY the Standalone Mobile Client Portal
   if (invoiceParam) {
     return <ClientPayPortal />;
   }
 
-  // Otherwise, render 100% Full Width Web Workspace
-  return <MerchantWorkspace />;
+  return <GenieMerchantWorkspace />;
 }
 
-function MerchantWorkspace() {
-  const [prompt, setPrompt] = useState('');
+function GenieMerchantWorkspace() {
+  const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [invoice, setInvoice] = useState<InvoiceData | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [currentInvoice, setCurrentInvoice] = useState<InvoiceData | null>(null);
   const [history, setHistory] = useState<InvoiceData[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'create' | 'ledger'>('create');
+  const [activeTab, setActiveTab] = useState<'genie' | 'ledger'>('genie');
+  
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Load invoices from localStorage on mount & listen to real-time payment sync
+  // Time-aware magical genie greeting
+  const getGenieGreeting = () => {
+    const hour = new Date().getHours();
+    let timeGreeting = 'Vanakkam & Good day!';
+    if (hour < 12) timeGreeting = 'Kaalai Vanakkam! Good morning!';
+    else if (hour < 17) timeGreeting = 'Mathiya Vanakkam! Good afternoon!';
+    else timeGreeting = 'Maalai Vanakkam! Good evening!';
+
+    return `${timeGreeting} Naan thaan unga **PayGenie** 🧞‍♂️✨\n\nYour wish is my command, master! Enkitta neenga normal-ah pesalam (English, Tamil, Tanglish ethula venumnalum!).\n\nE.g., *"Hi bro, epdi iruka?"* or *"Acme Tech-ku 10 hours React work $650 bill create pannu"* nu sonna odane structured invoice & PayPal link tharuren!`;
+  };
+
+  // Initialize greeting & local storage on mount
   useEffect(() => {
+    const greetingMsg: ChatMessage = {
+      id: 'greeting-1',
+      role: 'assistant',
+      content: getGenieGreeting(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages([greetingMsg]);
+
     try {
       const stored = localStorage.getItem('paygenie_invoices');
       if (stored) {
-        const list = JSON.parse(stored);
+        const list: InvoiceData[] = JSON.parse(stored);
         setHistory(list);
-        if (list.length > 0 && !invoice) {
-          setInvoice(list[0]);
+        if (list.length > 0) {
+          setCurrentInvoice(list[0]);
         }
       }
     } catch (e) {
       console.error(e);
     }
-
-    // Real-time Cross-Tab Live Sync via BroadcastChannel (Zero refresh needed)
-    let channel: BroadcastChannel | null = null;
-    try {
-      channel = new BroadcastChannel('paygenie_live_sync');
-      channel.onmessage = (event) => {
-        if (event.data?.type === 'PAYMENT_SETTLED') {
-          const { invoiceNumber, paymentId, paidAt, updatedInvoice } = event.data;
-          
-          setHistory((prev) =>
-            prev.map((i) =>
-              i.invoiceNumber === invoiceNumber
-                ? { ...i, status: 'PAID', paymentId, paidAt }
-                : i
-            )
-          );
-
-          setInvoice((current) => {
-            if (current && current.invoiceNumber === invoiceNumber) {
-              return { ...current, status: 'PAID', paymentId, paidAt };
-            }
-            return current;
-          });
-
-          toast.success(`⚡ Live Sync: Client settled ${invoiceNumber} via PayPal!`, {
-            description: `Payment captured: ${paymentId}`,
-          });
-        }
-      };
-    } catch (e) {
-      console.error('BroadcastChannel error:', e);
-    }
-
-    // Also fallback to localStorage storage event for older browser engines
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'paygenie_invoices' && e.newValue) {
-        try {
-          const list: InvoiceData[] = JSON.parse(e.newValue);
-          setHistory(list);
-          setInvoice((current) => {
-            if (!current) return list[0] || null;
-            const found = list.find((i) => i.invoiceNumber === current.invoiceNumber);
-            return found || current;
-          });
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      if (channel) channel.close();
-      window.removeEventListener('storage', handleStorageChange);
-    };
   }, []);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const saveToStorage = (updatedHistory: InvoiceData[]) => {
     try {
@@ -127,35 +98,64 @@ function MerchantWorkspace() {
     }
   };
 
-  const handleGenerate = async (textToUse?: string) => {
-    if (loading) return;
-    const finalPrompt = textToUse || prompt;
-    if (!finalPrompt.trim()) return;
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!inputMessage.trim() || loading) return;
 
+    const userText = inputMessage.trim();
+    setInputMessage('');
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: userText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
-    setError(null);
 
     try {
-      const res = await fetch('/api/generate-invoice', {
+      // Build conversation history for API
+      const conversationPayload = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const res = await fetch('/api/genie-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: finalPrompt }),
+        body: JSON.stringify({
+          messages: conversationPayload,
+          userMessage: userText,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate invoice with AI');
+        throw new Error(data.error || 'Genie could not hear your wish');
       }
 
-      setInvoice(data.invoice);
-      const updatedHistory = [data.invoice, ...history];
-      setHistory(updatedHistory);
-      saveToStorage(updatedHistory);
-      setActiveTab('create');
-      toast.success('Invoice generated! Client payment link is ready.');
+      const assistantMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.reply,
+        invoice: data.invoice || null,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+
+      // If an invoice was magically generated!
+      if (data.invoice) {
+        setCurrentInvoice(data.invoice);
+        const updatedHistory = [data.invoice, ...history];
+        setHistory(updatedHistory);
+        saveToStorage(updatedHistory);
+        toast.success(`✨ Invoice ${data.invoice.invoiceNumber} created & ready!`);
+      }
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
-      toast.error(err.message || 'Invoice generation failed');
+      toast.error(err.message || 'Genie is currently thinking...');
     } finally {
       setLoading(false);
     }
@@ -165,19 +165,19 @@ function MerchantWorkspace() {
     const updatedHistory = history.filter((i) => i.invoiceNumber !== invoiceNumber);
     setHistory(updatedHistory);
     saveToStorage(updatedHistory);
-    if (invoice?.invoiceNumber === invoiceNumber) {
-      setInvoice(null);
+    if (currentInvoice?.invoiceNumber === invoiceNumber) {
+      setCurrentInvoice(null);
     }
     toast.success(`Invoice ${invoiceNumber} deleted from ledger`);
   };
 
   return (
     <div className="min-h-screen bg-[#fafbfc] text-[#001435] flex flex-col font-sans">
+      
       {/* Official PayPal Enterprise Global Navigation */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           
-          {/* Authentic PayPal Brand Monogram & Product Title */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-[#003087] flex items-center justify-center text-white font-extrabold text-xl tracking-tighter shadow-sm">
               P
@@ -188,171 +188,164 @@ function MerchantWorkspace() {
                   PayGenie <span className="text-[#0070ba]">AI</span>
                 </span>
                 <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-[#003087] border border-blue-200">
-                  PayPal Sandbox Ready
+                  Interactive AI Genie
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="flex items-center gap-4">
             <div className="pp-segment-tabs">
               <button
-                onClick={() => setActiveTab('create')}
-                className={`pp-segment-tab ${activeTab === 'create' ? 'pp-segment-tab-active' : ''}`}
+                onClick={() => setActiveTab('genie')}
+                className={`pp-segment-tab ${activeTab === 'genie' ? 'pp-segment-tab-active' : ''}`}
               >
-                Invoicing Console
+                Genie Chamber
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
                 className={`pp-segment-tab ${activeTab === 'ledger' ? 'pp-segment-tab-active' : ''}`}
               >
-                Settlement Ledger ({history.length})
+                Ledger ({history.length})
               </button>
             </div>
           </div>
+
         </div>
       </header>
 
-      {/* Main Container: 100% Full Stage Web Workspace */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
-        {activeTab === 'create' ? (
-          <div className="space-y-8 animate-fade-in">
+      {/* Main Stage */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col">
+        {activeTab === 'genie' ? (
+          <div className="flex-1 flex flex-col space-y-6">
             
-            {/* Editorial Typography Headline */}
-            <section className="text-center space-y-3 max-w-2xl mx-auto">
-              <h1 className="text-3xl sm:text-5xl font-black text-[#001435] tracking-tight leading-[1.15]">
-                There’s a plus side to every <br className="hidden sm:inline" />
-                <em className="italic text-[#003087]">bill you send with PayPal.</em>
-              </h1>
-              <h2 className="text-sm sm:text-base text-slate-700 leading-relaxed font-normal">
-                Describe hours, projects, or merchandise in natural language. Google Gemini extracts line items, applies discounts/taxes, and generates official PayPal checkout links for your clients.
-              </h2>
-            </section>
-
-            {/* STEP 1: PROMPT INPUT CARD */}
-            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 space-y-5 shadow-xs">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
-                    01
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[#001435]">Describe Your Project & Rates</h3>
-                    <p className="text-xs text-slate-500">Processed by Google Gemini into verified billing data</p>
-                  </div>
-                </div>
-                <Sparkles className="w-5 h-5 text-[#0070ba]" />
-              </div>
-
-              <textarea
-                rows={3}
-                value={prompt}
-                disabled={loading}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-                className="w-full min-h-[96px] max-h-[220px] bg-[#f8fafc] border border-slate-300 rounded-2xl p-4 text-sm text-[#001435] placeholder-slate-500 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition resize-y disabled:opacity-60"
-              />
-
-              {error && (
-                <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 font-medium">
-                  {error}
+            {/* Center Stage: Floating Magical Genie Avatar */}
+            <div className="text-center py-4 flex flex-col items-center">
+              <GenieAvatar isThinking={loading} mood={loading ? 'magic' : 'happy'} />
+              <div className="mt-4 space-y-1">
+                <h1 className="text-2xl sm:text-3xl font-black text-[#001435] tracking-tight">
+                  Speak Your Wish to <span className="text-[#003087]">PayGenie</span> 🧞‍♂️
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-500">
+                  Chat casually, greet in Tanglish, or describe work to generate instant PayPal bills!
                 </p>
-              )}
-
-              {/* Quick Presets */}
-              <div className="space-y-2">
-                <span className="text-xs uppercase font-bold text-slate-700 tracking-wider">
-                  Quick Scenario Presets:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {SAMPLE_PROMPTS.map((sample, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setPrompt(sample);
-                        handleGenerate(sample);
-                      }}
-                      className="cursor-pointer text-xs text-left bg-slate-50 hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-3.5 rounded-xl border border-slate-200 transition font-medium leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {sample}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 flex items-center justify-between">
-                <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
-                  <Lock className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Generates direct client PayPal checkout URL</span>
-                </span>
-
-                <button
-                  onClick={() => handleGenerate()}
-                  disabled={loading || !prompt.trim()}
-                  className="pp-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>Generating Invoice...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Generate Invoice</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
               </div>
             </div>
 
-            {/* STEP 2: STRUCTURED INVOICE & DISPATCH ACTIONS */}
-            {invoice && (
-              <div id="invoice-step-section" className="space-y-6 animate-fade-in">
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
-                      02
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-[#001435]">Verified Structured Invoice</h3>
-                      <p className="text-xs text-slate-500">Live preview & settlement actions</p>
-                    </div>
+            {/* Conversational Stream */}
+            <div className="flex-1 space-y-4 pb-28">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 items-start animate-fade-in ${
+                    msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
+                  }`}
+                >
+                  {/* Avatar Icon */}
+                  <div
+                    className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm shadow-xs ${
+                      msg.role === 'user'
+                        ? 'bg-[#003087] text-white'
+                        : 'bg-gradient-to-tr from-[#0070ba] to-sky-300 text-white font-bold'
+                    }`}
+                  >
+                    {msg.role === 'user' ? <User className="w-4 h-4" /> : '🧞‍♂️'}
                   </div>
 
-                  {/* Direct Link to Mobile View */}
-                  <a
-                    href={`/?invoice=${invoice.invoiceNumber}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003087] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition"
-                  >
-                    <span>Open Client Mobile View</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
+                  {/* Message Bubble Content */}
+                  <div className={`max-w-[85%] space-y-3 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    <div
+                      className={`inline-block p-4 rounded-3xl text-sm leading-relaxed shadow-xs ${
+                        msg.role === 'user'
+                          ? 'bg-[#003087] text-white rounded-tr-xs'
+                          : 'bg-white border border-slate-200 text-[#001435] rounded-tl-xs'
+                      }`}
+                    >
+                      <p className="whitespace-pre-line">{msg.content}</p>
+                      <span className={`text-[10px] block mt-1.5 opacity-60 ${msg.role === 'user' ? 'text-white' : 'text-slate-400'}`}>
+                        {msg.timestamp}
+                      </span>
+                    </div>
 
-                <InvoiceView 
-                  invoice={invoice} 
-                  onUpdateInvoice={(updated) => {
-                    setInvoice(updated);
-                    const updatedHistory = history.map((i) =>
-                      i.invoiceNumber === updated.invoiceNumber ? updated : i
-                    );
-                    setHistory(updatedHistory);
-                    saveToStorage(updatedHistory);
-                  }}
-                />
+                    {/* If this Genie reply created an Invoice, render the Invoice Card right inline! */}
+                    {msg.invoice && (
+                      <div className="text-left mt-3 animate-fade-in">
+                        <div className="flex items-center justify-between pb-2 mb-2">
+                          <span className="text-xs font-bold text-[#003087] uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-[#0070ba]" />
+                            <span>Magical Structured Invoice</span>
+                          </span>
+                          <a
+                            href={`/?invoice=${msg.invoice.invoiceNumber}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-[#003087] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded-full transition"
+                          >
+                            <span>Client Mobile View</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                        <InvoiceView 
+                          invoice={msg.invoice}
+                          onUpdateInvoice={(updated) => {
+                            setCurrentInvoice(updated);
+                            const updatedHistory = history.map((i) =>
+                              i.invoiceNumber === updated.invoiceNumber ? updated : i
+                            );
+                            setHistory(updatedHistory);
+                            saveToStorage(updatedHistory);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {loading && (
+                <div className="flex gap-3 items-center text-xs text-slate-500 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold">
+                    🧞‍♂️
+                  </div>
+                  <span className="italic">PayGenie is crafting your wish...</span>
+                </div>
+              )}
+
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Bottom Fixed Chat Input Bar */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 py-4 px-4 z-40">
+              <div className="max-w-4xl mx-auto">
+                <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    disabled={loading}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    placeholder="Speak to PayGenie... e.g. 'Hi bro!' or 'Acme Tech-ku $650 bill ready pannu'..."
+                    className="flex-1 bg-[#f8fafc] border border-slate-300 rounded-full py-3.5 pl-6 pr-14 text-sm text-[#001435] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition disabled:opacity-60"
+                  />
+                  
+                  <button
+                    type="submit"
+                    disabled={loading || !inputMessage.trim()}
+                    className="absolute right-2 pp-button-primary !p-2.5 !min-w-0 !rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
+                    title="Send wish"
+                  >
+                    {loading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </button>
+                </form>
               </div>
-            )}
+            </div>
+
           </div>
         ) : (
-          /* ======================================================== */
-          /* MERCHANT SETTLEMENT LEDGER                              */
-          /* ======================================================== */
+          /* Ledger Tab */
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-xs space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
               <div>
@@ -379,14 +372,14 @@ function MerchantWorkspace() {
             {history.length === 0 ? (
               <div className="text-center py-16 text-slate-400 text-xs space-y-3">
                 <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto" />
-                <p className="font-bold text-sm text-slate-600">No invoices generated yet</p>
-                <p className="text-slate-400">Head over to the Invoicing Console to generate your first invoice.</p>
+                <p className="font-bold text-sm text-slate-600">No invoices in this session</p>
+                <p className="text-slate-400">Ask the Genie in the Genie Chamber to craft your first invoice.</p>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('create')}
+                  onClick={() => setActiveTab('genie')}
                   className="pp-button-secondary !py-2 !text-xs"
                 >
-                  Create Invoice →
+                  Talk to Genie →
                 </button>
               </div>
             ) : (
@@ -449,16 +442,6 @@ function MerchantWorkspace() {
                             </a>
                             <button
                               type="button"
-                              onClick={() => {
-                                setInvoice(inv);
-                                setActiveTab('create');
-                              }}
-                              className="cursor-pointer text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition"
-                            >
-                              Inspect
-                            </button>
-                            <button
-                              type="button"
                               onClick={() => handleDeleteLedgerItem(inv.invoiceNumber)}
                               className="cursor-pointer p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
                               title="Delete from Ledger"
@@ -477,13 +460,6 @@ function MerchantWorkspace() {
         )}
       </main>
 
-      {/* Official PayPal Enterprise Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <span className="font-bold text-[#001435]">PayGenie AI • PayPal AI Hackathon 2026</span>
-          <span className="text-slate-500">Powered by PayPal Developer Platform & Google Gemini</span>
-        </div>
-      </footer>
     </div>
   );
 }
