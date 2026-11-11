@@ -169,19 +169,6 @@ export default function Home() {
                 </h2>
               </section>
 
-              {/* Step Sequence Pills */}
-              <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                <div className="p-2.5 rounded-full bg-[#003087] text-white font-bold shadow-xs">
-                  01. Prompt Work
-                </div>
-                <div className={`p-2.5 rounded-full border transition ${invoice ? 'bg-[#003087] text-white font-bold shadow-xs' : 'bg-white border-slate-200 text-slate-400 font-semibold'}`}>
-                  02. AI Invoice
-                </div>
-                <div className={`p-2.5 rounded-full border transition ${invoice?.status === 'PAID' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'bg-white border-slate-200 text-slate-400 font-semibold'}`}>
-                  03. Client Paid Receipt
-                </div>
-              </div>
-
               {/* STEP 1: PROMPT INPUT CARD */}
               <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xs">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-100">
