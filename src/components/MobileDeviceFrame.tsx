@@ -43,6 +43,7 @@ export default function MobileDeviceFrame({
 }: MobileDeviceFrameProps) {
   const [mobileTab, setMobileTab] = useState<'chat' | 'checkout'>('chat');
   const [copied, setCopied] = useState(false);
+  const [showEmailPreview, setShowEmailPreview] = useState(false);
 
   // Auto-switch to Bill & Pay tab when invoice is successfully generated
   React.useEffect(() => {
@@ -323,7 +324,7 @@ export default function MobileDeviceFrame({
                   ) : (
                     <div>
                       <PayPalButtons
-                        style={{ layout: 'vertical', shape: 'rect', height: 42, color: 'gold' }}
+                        style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 42, color: 'gold' }}
                         createOrder={async () => {
                           try {
                             const res = await fetch('/api/paypal/create-order', {
@@ -368,27 +369,52 @@ export default function MobileDeviceFrame({
                   )}
                 </div>
 
-                {/* Mobile Quick Action Buttons */}
-                <div className="flex gap-2">
-                  {onDownloadPDF && (
-                    <button
-                      type="button"
-                      onClick={onDownloadPDF}
-                      className="cursor-pointer flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1.5 transition border border-slate-200"
-                    >
-                      <Download className="w-3.5 h-3.5 text-[#0070ba]" />
-                      <span>PDF</span>
-                    </button>
-                  )}
-                  {invoice.emailDraft && (
-                    <button
-                      type="button"
-                      onClick={handleCopyEmail}
-                      className="cursor-pointer flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1.5 transition border border-slate-200"
-                    >
-                      {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#0070ba]" />}
-                      <span>{copied ? 'Copied' : 'Email'}</span>
-                    </button>
+                {/* Mobile Quick Action Buttons & Email Toggle */}
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    {onDownloadPDF && (
+                      <button
+                        type="button"
+                        onClick={onDownloadPDF}
+                        className="cursor-pointer flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1.5 transition border border-slate-200"
+                      >
+                        <Download className="w-3.5 h-3.5 text-[#0070ba]" />
+                        <span>PDF</span>
+                      </button>
+                    )}
+                    {invoice.emailDraft && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowEmailPreview(!showEmailPreview)}
+                          className="cursor-pointer flex-1 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#003087] font-bold text-[11px] flex items-center justify-center gap-1.5 transition border border-blue-200"
+                        >
+                          <Send className="w-3.5 h-3.5 text-[#0070ba]" />
+                          <span>{showEmailPreview ? 'Hide Email' : 'View Email'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyEmail}
+                          className="cursor-pointer py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] flex items-center justify-center gap-1.5 transition border border-slate-200"
+                        >
+                          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-[#0070ba]" />}
+                          <span>{copied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Expandable Mobile Email Drawer */}
+                  {showEmailPreview && invoice.emailDraft && (
+                    <div className="bg-[#f5f7fa] p-3 rounded-xl border border-slate-200 space-y-2 animate-fade-in text-[11px]">
+                      <div className="font-bold text-[#001435] border-b border-slate-200 pb-1">
+                        <span className="text-slate-400 block text-[9px] uppercase">Subject</span>
+                        {invoice.emailDraft.subject}
+                      </div>
+                      <div className="whitespace-pre-line text-slate-600 leading-relaxed font-sans max-h-36 overflow-y-auto">
+                        {invoice.emailDraft.body}
+                      </div>
+                    </div>
                   )}
                 </div>
 

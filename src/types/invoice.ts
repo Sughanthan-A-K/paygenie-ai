@@ -29,5 +29,6 @@ export interface InvoiceData {
   emailDraft?: {
     subject: string;
     body: string;
+    template?: 'formal' | 'friendly' | 'urgent';
   };
 }

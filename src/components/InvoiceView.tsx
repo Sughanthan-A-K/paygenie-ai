@@ -25,20 +25,77 @@ import { toast } from 'sonner';
 interface InvoiceViewProps {
   invoice: InvoiceData;
   onPaymentSuccess: (paymentId: string) => void;
+  onUpdateInvoice?: (updated: InvoiceData) => void;
 }
 
-export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewProps) {
+export default function InvoiceView({ invoice, onPaymentSuccess, onUpdateInvoice }: InvoiceViewProps) {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState(invoice.emailDraft?.subject || '');
+  const [emailBody, setEmailBody] = useState(invoice.emailDraft?.body || '');
+  const [activeTemplate, setActiveTemplate] = useState<'formal' | 'friendly' | 'urgent'>('formal');
   const invoicePrintRef = useRef<HTMLDivElement>(null);
 
-  const handleCopyEmail = () => {
+  // Sync internal state when invoice changes
+  React.useEffect(() => {
     if (invoice.emailDraft) {
-      navigator.clipboard.writeText(`Subject: ${invoice.emailDraft.subject}\n\n${invoice.emailDraft.body}`);
-      setCopied(true);
-      toast.success('Email copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
+      setEmailSubject(invoice.emailDraft.subject);
+      setEmailBody(invoice.emailDraft.body);
     }
+  }, [invoice]);
+
+  const applyEmailTemplate = (template: 'formal' | 'friendly' | 'urgent') => {
+    setActiveTemplate(template);
+    let newSubject = '';
+    let newBody = '';
+
+    if (template === 'formal') {
+      newSubject = `Official Invoice ${invoice.invoiceNumber} from ${invoice.sellerName}`;
+      newBody = `Dear ${invoice.clientName},\n\nPlease find attached invoice ${invoice.invoiceNumber} for the total amount of $${invoice.totalAmount.toFixed(2)} USD due on ${invoice.dueDate}.\n\nYou can settle this payment instantly via PayPal using our secure checkout link.\n\nThank you for your business.\n\nSincerely,\n${invoice.sellerName}`;
+    } else if (template === 'friendly') {
+      newSubject = `Hey ${invoice.clientName}! Your invoice ${invoice.invoiceNumber} is ready 😊`;
+      newBody = `Hi ${invoice.clientName}!\n\nHope you're having a fantastic week. Just sending over invoice ${invoice.invoiceNumber} for $${invoice.totalAmount.toFixed(2)} USD (due ${invoice.dueDate}).\n\nWhenever you're ready, you can click the PayPal button to settle it with one click.\n\nCheers,\n${invoice.sellerName}`;
+    } else if (template === 'urgent') {
+      newSubject = `[Action Required] Payment Due Soon: Invoice ${invoice.invoiceNumber}`;
+      newBody = `Hello ${invoice.clientName},\n\nThis is a friendly reminder that invoice ${invoice.invoiceNumber} for $${invoice.totalAmount.toFixed(2)} USD is due on ${invoice.dueDate}.\n\nTo ensure uninterrupted services, please complete the settlement via PayPal.\n\nRegards,\n${invoice.sellerName}`;
+    }
+
+    setEmailSubject(newSubject);
+    setEmailBody(newBody);
+
+    if (onUpdateInvoice) {
+      onUpdateInvoice({
+        ...invoice,
+        emailDraft: {
+          subject: newSubject,
+          body: newBody,
+          template,
+        },
+      });
+    }
+  };
+
+  const handleSaveEmail = () => {
+    setIsEditingEmail(false);
+    if (onUpdateInvoice) {
+      onUpdateInvoice({
+        ...invoice,
+        emailDraft: {
+          subject: emailSubject,
+          body: emailBody,
+          template: activeTemplate,
+        },
+      });
+    }
+    toast.success('Email draft updated & synchronized!');
+  };
+
+  const handleCopyEmail = () => {
+    navigator.clipboard.writeText(`Subject: ${emailSubject}\n\n${emailBody}`);
+    setCopied(true);
+    toast.success('Email copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownloadPDF = async () => {
@@ -243,8 +300,8 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
           </div>
         ) : (
           <div className="max-w-md mx-auto">
-            <PayPalButtons
-              style={{ layout: 'vertical', shape: 'rect', height: 48, color: 'gold' }}
+        <PayPalButtons
+          style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 48, color: 'gold' }}
               createOrder={async () => {
                 try {
                   const res = await fetch('/api/paypal/create-order', {
@@ -291,36 +348,91 @@ export default function InvoiceView({ invoice, onPaymentSuccess }: InvoiceViewPr
         )}
       </div>
 
-      {/* STEP 4: AI CLIENT NOTIFICATION EMAIL */}
+      {/* STEP 4: AI CLIENT NOTIFICATION EMAIL WITH TEMPLATES & EDITING */}
       {invoice.emailDraft && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-[#0070ba]/10 text-[#0070ba] flex items-center justify-center font-black text-xs">
                 04
               </div>
               <div>
                 <h3 className="text-base font-bold text-[#001435]">AI Client Dispatch Email</h3>
-                <p className="text-xs text-slate-500">Auto-drafted by Gemini with payment instructions</p>
+                <p className="text-xs text-slate-500">Pick a tone template or customize directly</p>
               </div>
             </div>
 
-            <button
-              onClick={handleCopyEmail}
-              className="cursor-pointer pp-button-secondary text-xs"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'Copied' : 'Copy Email'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (isEditingEmail) handleSaveEmail();
+                  else setIsEditingEmail(true);
+                }}
+                className="cursor-pointer text-xs font-bold px-3 py-1.5 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-700 transition"
+              >
+                {isEditingEmail ? 'Save Custom Text' : 'Edit Email'}
+              </button>
+
+              <button
+                onClick={handleCopyEmail}
+                className="cursor-pointer pp-button-secondary text-xs"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                <span>{copied ? 'Copied' : 'Copy Email'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="bg-[#f5f7fa] p-5 rounded-2xl border border-slate-200/80 text-xs text-slate-700 space-y-2">
-            <p className="border-b border-slate-200 pb-2 font-medium">
-              <span className="text-slate-500 font-bold">Subject:</span> {invoice.emailDraft.subject}
-            </p>
-            <div className="whitespace-pre-line leading-relaxed font-sans text-slate-600">
-              {invoice.emailDraft.body}
+          {/* Quick Tone Templates */}
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">Tone Preset:</span>
+            <div className="flex gap-1.5">
+              {(['formal', 'friendly', 'urgent'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => applyEmailTemplate(t)}
+                  className={`cursor-pointer px-3 py-1 rounded-full text-xs font-bold transition capitalize ${
+                    activeTemplate === t
+                      ? 'bg-[#003087] text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div className="bg-[#f5f7fa] p-5 rounded-2xl border border-slate-200/80 text-xs text-slate-700 space-y-3">
+            {isEditingEmail ? (
+              <div className="space-y-2">
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  placeholder="Email Subject..."
+                  className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] font-bold focus:outline-none focus:border-[#0070ba]"
+                />
+                <textarea
+                  rows={6}
+                  value={emailBody}
+                  onChange={(e) => setEmailBody(e.target.value)}
+                  placeholder="Email Body..."
+                  className="w-full bg-white border border-slate-300 rounded-xl p-3 text-xs text-slate-700 font-sans focus:outline-none focus:border-[#0070ba]"
+                />
+              </div>
+            ) : (
+              <>
+                <p className="border-b border-slate-200 pb-2 font-medium">
+                  <span className="text-slate-500 font-bold">Subject:</span> {emailSubject}
+                </p>
+                <div className="whitespace-pre-line leading-relaxed font-sans text-slate-600">
+                  {emailBody}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
