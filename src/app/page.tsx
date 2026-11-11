@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { 
   ArrowRight, 
   RefreshCw, 
@@ -11,12 +12,11 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Trash2,
-  PlusCircle,
-  Clock,
-  ArrowUpRight
+  Clock
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
 import MobileDeviceFrame from '@/components/MobileDeviceFrame';
+import ClientPayPortal from '@/components/ClientPayPortal';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
 
@@ -26,13 +26,50 @@ const SAMPLE_PROMPTS = [
   "Cloud consultation for Nexus Labs: 3 architecture review sessions at $150 each plus $50 server setup fee."
 ];
 
-export default function Home() {
+function MainAppContent() {
+  const searchParams = useSearchParams();
+  const invoiceParam = searchParams.get('invoice');
+
+  // If URL has ?invoice=INV-XXXX, render the Standalone Client Checkout Portal
+  if (invoiceParam) {
+    return <ClientPayPortal />;
+  }
+
+  return <MerchantWorkspace />;
+}
+
+function MerchantWorkspace() {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [history, setHistory] = useState<InvoiceData[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'create' | 'ledger'>('create');
+
+  // Load invoices from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('paygenie_invoices');
+      if (stored) {
+        const list = JSON.parse(stored);
+        setHistory(list);
+        if (list.length > 0 && !invoice) {
+          setInvoice(list[0]);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  // Save to localStorage when history changes
+  const saveToStorage = (updatedHistory: InvoiceData[]) => {
+    try {
+      localStorage.setItem('paygenie_invoices', JSON.stringify(updatedHistory));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleGenerate = async (textToUse?: string) => {
     if (loading) return;
@@ -55,7 +92,9 @@ export default function Home() {
       }
 
       setInvoice(data.invoice);
-      setHistory((prev) => [data.invoice, ...prev]);
+      const updatedHistory = [data.invoice, ...history];
+      setHistory(updatedHistory);
+      saveToStorage(updatedHistory);
       setActiveTab('create');
       toast.success('Invoice created & pushed to Client Mobile device!');
     } catch (err: any) {
@@ -75,16 +114,18 @@ export default function Home() {
       paidAt: new Date().toLocaleString(),
     };
     setInvoice(updatedInvoice);
-    setHistory((prev) =>
-      prev.map((inv) =>
-        inv.invoiceNumber === updatedInvoice.invoiceNumber ? updatedInvoice : inv
-      )
+    const updatedHistory = history.map((inv) =>
+      inv.invoiceNumber === updatedInvoice.invoiceNumber ? updatedInvoice : inv
     );
-    toast.success(`Payment verified! Invoice ${invoice.invoiceNumber} updated in Ledger.`);
+    setHistory(updatedHistory);
+    saveToStorage(updatedHistory);
+    toast.success(`Payment verified! Invoice ${invoice.invoiceNumber} settled.`);
   };
 
   const handleDeleteLedgerItem = (invoiceNumber: string) => {
-    setHistory((prev) => prev.filter((i) => i.invoiceNumber !== invoiceNumber));
+    const updatedHistory = history.filter((i) => i.invoiceNumber !== invoiceNumber);
+    setHistory(updatedHistory);
+    saveToStorage(updatedHistory);
     if (invoice?.invoiceNumber === invoiceNumber) {
       setInvoice(null);
     }
@@ -114,7 +155,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Real-time Interaction Indicator & Tabs */}
+          {/* Interaction Indicator & Tabs */}
           <div className="flex items-center gap-4">
             <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-300 text-xs font-semibold text-slate-800">
               <span className="w-2 h-2 rounded-full bg-emerald-600" />
@@ -265,9 +306,11 @@ export default function Home() {
                     invoice={invoice} 
                     onUpdateInvoice={(updated) => {
                       setInvoice(updated);
-                      setHistory((prev) =>
-                        prev.map((i) => i.invoiceNumber === updated.invoiceNumber ? updated : i)
+                      const updatedHistory = history.map((i) =>
+                        i.invoiceNumber === updated.invoiceNumber ? updated : i
                       );
+                      setHistory(updatedHistory);
+                      saveToStorage(updatedHistory);
                     }}
                   />
                 </div>
@@ -412,5 +455,13 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <MainAppContent />
+    </Suspense>
   );
 }
