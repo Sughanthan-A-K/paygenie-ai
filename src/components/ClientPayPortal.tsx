@@ -103,6 +103,21 @@ export default function ClientPayPortal() {
 
     fireSuccessCelebration();
     toast.success('Payment settled successfully via PayPal!');
+
+    // Cross-tab real-time sync channel (BroadcastChannel API)
+    try {
+      const channel = new BroadcastChannel('paygenie_live_sync');
+      channel.postMessage({
+        type: 'PAYMENT_SETTLED',
+        invoiceNumber: updated.invoiceNumber,
+        paymentId: updated.paymentId,
+        paidAt: updated.paidAt,
+        updatedInvoice: updated,
+      });
+      channel.close();
+    } catch (e) {
+      console.error('BroadcastChannel sync failed:', e);
+    }
   };
 
   if (loading) {

@@ -47,7 +47,7 @@ function MerchantWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'create' | 'ledger'>('create');
 
-  // Load invoices from localStorage on mount
+  // Load invoices from localStorage on mount & listen to real-time payment sync
   useEffect(() => {
     try {
       const stored = localStorage.getItem('paygenie_invoices');
@@ -61,6 +61,62 @@ function MerchantWorkspace() {
     } catch (e) {
       console.error(e);
     }
+
+    // Real-time Cross-Tab Live Sync via BroadcastChannel (Zero refresh needed)
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel('paygenie_live_sync');
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'PAYMENT_SETTLED') {
+          const { invoiceNumber, paymentId, paidAt, updatedInvoice } = event.data;
+          
+          setHistory((prev) =>
+            prev.map((i) =>
+              i.invoiceNumber === invoiceNumber
+                ? { ...i, status: 'PAID', paymentId, paidAt }
+                : i
+            )
+          );
+
+          setInvoice((current) => {
+            if (current && current.invoiceNumber === invoiceNumber) {
+              return { ...current, status: 'PAID', paymentId, paidAt };
+            }
+            return current;
+          });
+
+          toast.success(`⚡ Live Sync: Client settled ${invoiceNumber} via PayPal!`, {
+            description: `Payment captured: ${paymentId}`,
+          });
+        }
+      };
+    } catch (e) {
+      console.error('BroadcastChannel error:', e);
+    }
+
+    // Also fallback to localStorage storage event for older browser engines
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'paygenie_invoices' && e.newValue) {
+        try {
+          const list: InvoiceData[] = JSON.parse(e.newValue);
+          setHistory(list);
+          setInvoice((current) => {
+            if (!current) return list[0] || null;
+            const found = list.find((i) => i.invoiceNumber === current.invoiceNumber);
+            return found || current;
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      if (channel) channel.close();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const saveToStorage = (updatedHistory: InvoiceData[]) => {
