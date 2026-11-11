@@ -7,15 +7,15 @@ import {
   RefreshCw, 
   Lock, 
   Sparkles,
-  Smartphone,
   Monitor,
   CheckCircle2,
   FileSpreadsheet,
   Trash2,
-  Clock
+  Clock,
+  Link2,
+  ExternalLink
 } from 'lucide-react';
 import InvoiceView from '@/components/InvoiceView';
-import MobileDeviceFrame from '@/components/MobileDeviceFrame';
 import ClientPayPortal from '@/components/ClientPayPortal';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
@@ -30,11 +30,12 @@ function MainAppContent() {
   const searchParams = useSearchParams();
   const invoiceParam = searchParams.get('invoice');
 
-  // If URL has ?invoice=INV-XXXX, render the Standalone Client Checkout Portal
+  // If URL has ?invoice=INV-XXXX, render ONLY the Standalone Mobile Client Portal
   if (invoiceParam) {
     return <ClientPayPortal />;
   }
 
+  // Otherwise, render 100% Full Width Web Workspace
   return <MerchantWorkspace />;
 }
 
@@ -62,7 +63,6 @@ function MerchantWorkspace() {
     }
   }, []);
 
-  // Save to localStorage when history changes
   const saveToStorage = (updatedHistory: InvoiceData[]) => {
     try {
       localStorage.setItem('paygenie_invoices', JSON.stringify(updatedHistory));
@@ -96,30 +96,13 @@ function MerchantWorkspace() {
       setHistory(updatedHistory);
       saveToStorage(updatedHistory);
       setActiveTab('create');
-      toast.success('Invoice created & pushed to Client Mobile device!');
+      toast.success('Invoice generated! Client payment link is ready.');
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
       toast.error(err.message || 'Invoice generation failed');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handlePaymentSuccess = (paymentId: string) => {
-    if (!invoice) return;
-    const updatedInvoice: InvoiceData = {
-      ...invoice,
-      status: 'PAID',
-      paymentId,
-      paidAt: new Date().toLocaleString(),
-    };
-    setInvoice(updatedInvoice);
-    const updatedHistory = history.map((inv) =>
-      inv.invoiceNumber === updatedInvoice.invoiceNumber ? updatedInvoice : inv
-    );
-    setHistory(updatedHistory);
-    saveToStorage(updatedHistory);
-    toast.success(`Payment verified! Invoice ${invoice.invoiceNumber} settled.`);
   };
 
   const handleDeleteLedgerItem = (invoiceNumber: string) => {
@@ -136,7 +119,7 @@ function MerchantWorkspace() {
     <div className="min-h-screen bg-[#fafbfc] text-[#001435] flex flex-col font-sans">
       {/* Official PayPal Enterprise Global Navigation */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
-        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           
           {/* Authentic PayPal Brand Monogram & Product Title */}
           <div className="flex items-center gap-3">
@@ -155,19 +138,14 @@ function MerchantWorkspace() {
             </div>
           </div>
 
-          {/* Interaction Indicator & Tabs */}
+          {/* Tabs */}
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-300 text-xs font-semibold text-slate-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-600" />
-              <span>Merchant Console (Left) ⇄ Client Checkout (Right)</span>
-            </div>
-
             <div className="pp-segment-tabs">
               <button
                 onClick={() => setActiveTab('create')}
                 className={`pp-segment-tab ${activeTab === 'create' ? 'pp-segment-tab-active' : ''}`}
               >
-                Merchant Workspace
+                Invoicing Console
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
@@ -180,159 +158,146 @@ function MerchantWorkspace() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-[1380px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      {/* Main Container: 100% Full Stage Web Workspace */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
         {activeTab === 'create' ? (
-          <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 items-start">
+          <div className="space-y-8 animate-fade-in">
             
-            {/* ======================================================== */}
-            {/* LEFT: MERCHANT BILLING CONSOLE (You create & send bills) */}
-            {/* ======================================================== */}
-            <div className="flex-1 min-w-0 space-y-8">
-              
-              {/* Web Header Badge */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-700">
-                <span className="inline-flex items-center gap-2 text-[#003087]">
-                  <Monitor className="w-4 h-4 text-[#0070ba]" />
-                  <span>Merchant Invoicing Console</span>
+            {/* Editorial Typography Headline */}
+            <section className="text-center space-y-3 max-w-2xl mx-auto">
+              <h1 className="text-3xl sm:text-5xl font-black text-[#001435] tracking-tight leading-[1.15]">
+                There’s a plus side to every <br className="hidden sm:inline" />
+                <em className="italic text-[#003087]">bill you send with PayPal.</em>
+              </h1>
+              <h2 className="text-sm sm:text-base text-slate-700 leading-relaxed font-normal">
+                Describe hours, projects, or merchandise in natural language. Google Gemini extracts line items, applies discounts/taxes, and generates official PayPal checkout links for your clients.
+              </h2>
+            </section>
+
+            {/* STEP 1: PROMPT INPUT CARD */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 space-y-5 shadow-xs">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
+                    01
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#001435]">Describe Your Project & Rates</h3>
+                    <p className="text-xs text-slate-500">Processed by Google Gemini into verified billing data</p>
+                  </div>
+                </div>
+                <Sparkles className="w-5 h-5 text-[#0070ba]" />
+              </div>
+
+              <textarea
+                rows={3}
+                value={prompt}
+                disabled={loading}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
+                className="w-full min-h-[96px] max-h-[220px] bg-[#f8fafc] border border-slate-300 rounded-2xl p-4 text-sm text-[#001435] placeholder-slate-500 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition resize-y disabled:opacity-60"
+              />
+
+              {error && (
+                <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 font-medium">
+                  {error}
+                </p>
+              )}
+
+              {/* Quick Presets */}
+              <div className="space-y-2">
+                <span className="text-xs uppercase font-bold text-slate-700 tracking-wider">
+                  Quick Scenario Presets:
                 </span>
-                <span className="text-slate-500">Natural language to verified PayPal invoices</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {SAMPLE_PROMPTS.map((sample, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => {
+                        setPrompt(sample);
+                        handleGenerate(sample);
+                      }}
+                      className="cursor-pointer text-xs text-left bg-slate-50 hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-3.5 rounded-xl border border-slate-200 transition font-medium leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {sample}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Editorial Typography Headline */}
-              <section className="space-y-3">
-                <h1 className="text-3xl sm:text-4xl font-black text-[#001435] tracking-tight leading-[1.15]">
-                  There’s a plus side to every <br className="hidden sm:inline" />
-                  <em className="italic text-[#003087]">bill you send with PayPal.</em>
-                </h1>
-                <h2 className="text-sm sm:text-base text-slate-700 leading-relaxed max-w-xl font-normal">
-                  Describe hours, projects, or merchandise in freeform text. Google Gemini structures line items and pricing, ready to dispatch to clients for one-click checkout.
-                </h2>
-              </section>
+              <div className="pt-2 flex items-center justify-between">
+                <span className="text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+                  <Lock className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Generates direct client PayPal checkout URL</span>
+                </span>
 
-              {/* STEP 1: PROMPT INPUT CARD */}
-              <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-5 shadow-xs">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <button
+                  onClick={() => handleGenerate()}
+                  disabled={loading || !prompt.trim()}
+                  className="pp-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Generating Invoice...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Generate Invoice</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* STEP 2: STRUCTURED INVOICE & DISPATCH ACTIONS */}
+            {invoice && (
+              <div id="invoice-step-section" className="space-y-6 animate-fade-in">
+                <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
-                      01
-                    </div>
-                    <div>
-                      <h3 className="text-base font-bold text-[#001435]">Describe Your Project & Rates</h3>
-                      <p className="text-xs text-slate-500">Processed by Google Gemini into verified billing data</p>
-                    </div>
-                  </div>
-                  <Sparkles className="w-5 h-5 text-[#0070ba]" />
-                </div>
-
-                <textarea
-                  rows={3}
-                  value={prompt}
-                  disabled={loading}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g. Billed Acme Tech $650 for React Dashboard development, 10 hours at $65/hr with a 5% early bird discount..."
-                  className="w-full min-h-[96px] max-h-[220px] bg-[#f8fafc] border border-slate-300 rounded-2xl p-4 text-sm text-[#001435] placeholder-slate-500 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition resize-y disabled:opacity-60"
-                />
-
-                {error && (
-                  <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl border border-red-200 font-medium">
-                    {error}
-                  </p>
-                )}
-
-                {/* Quick Presets */}
-                <div className="space-y-2">
-                  <span className="text-xs uppercase font-bold text-slate-700 tracking-wider">
-                    Quick Scenario Presets:
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {SAMPLE_PROMPTS.map((sample, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        disabled={loading}
-                        onClick={() => {
-                          setPrompt(sample);
-                          handleGenerate(sample);
-                        }}
-                        className="cursor-pointer text-xs text-left bg-slate-50 hover:bg-blue-50/60 hover:border-blue-300 text-slate-700 p-3.5 rounded-xl border border-slate-200 transition font-medium leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {sample}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-600 flex items-center gap-1.5 font-medium">
-                    <Lock className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Real-time sync to client mobile screen</span>
-                  </span>
-
-                  <button
-                    onClick={() => handleGenerate()}
-                    disabled={loading || !prompt.trim()}
-                    className="pp-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Generating Invoice...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Generate & Dispatch</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* STEP 2: STRUCTURED INVOICE & DISPATCH ACTIONS */}
-              {invoice && (
-                <div id="invoice-step-section" className="space-y-6 animate-fade-in">
-                  <div className="flex items-center gap-3 pt-2">
                     <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
                       02
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-[#001435]">Verified Structured Invoice</h3>
-                      <p className="text-xs text-slate-500">Live preview & merchant client dispatch</p>
+                      <p className="text-xs text-slate-500">Live preview & settlement actions</p>
                     </div>
                   </div>
 
-                  <InvoiceView 
-                    invoice={invoice} 
-                    onUpdateInvoice={(updated) => {
-                      setInvoice(updated);
-                      const updatedHistory = history.map((i) =>
-                        i.invoiceNumber === updated.invoiceNumber ? updated : i
-                      );
-                      setHistory(updatedHistory);
-                      saveToStorage(updatedHistory);
-                    }}
-                  />
+                  {/* Direct Link to Mobile View */}
+                  <a
+                    href={`/?invoice=${invoice.invoiceNumber}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#003087] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-full transition"
+                  >
+                    <span>Open Client Mobile View</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-              )}
-            </div>
 
-            {/* ======================================================== */}
-            {/* RIGHT: CLIENT MOBILE PHONE (Client receives bill & pays) */}
-            {/* ======================================================== */}
-            <div className="w-full lg:w-[380px] shrink-0 sticky top-24 self-start">
-              <MobileDeviceFrame
-                invoice={invoice}
-                onPaymentSuccess={handlePaymentSuccess}
-              />
-            </div>
-
+                <InvoiceView 
+                  invoice={invoice} 
+                  onUpdateInvoice={(updated) => {
+                    setInvoice(updated);
+                    const updatedHistory = history.map((i) =>
+                      i.invoiceNumber === updated.invoiceNumber ? updated : i
+                    );
+                    setHistory(updatedHistory);
+                    saveToStorage(updatedHistory);
+                  }}
+                />
+              </div>
+            )}
           </div>
         ) : (
           /* ======================================================== */
           /* MERCHANT SETTLEMENT LEDGER                              */
           /* ======================================================== */
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-9 shadow-xs space-y-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
               <div>
                 <h2 className="text-2xl font-black text-[#001435]">Merchant Settlement Ledger</h2>
@@ -359,7 +324,7 @@ function MerchantWorkspace() {
               <div className="text-center py-16 text-slate-400 text-xs space-y-3">
                 <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto" />
                 <p className="font-bold text-sm text-slate-600">No invoices generated yet</p>
-                <p className="text-slate-400">Head over to the Merchant Workspace to generate your first invoice.</p>
+                <p className="text-slate-400">Head over to the Invoicing Console to generate your first invoice.</p>
                 <button
                   type="button"
                   onClick={() => setActiveTab('create')}
@@ -417,15 +382,24 @@ function MerchantWorkspace() {
                         </td>
                         <td className="py-4 px-3 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            <a
+                              href={`/?invoice=${inv.invoiceNumber}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="cursor-pointer text-xs font-bold text-[#0070ba] hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition inline-flex items-center gap-1"
+                            >
+                              <span>Client Pay Link</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
                             <button
                               type="button"
                               onClick={() => {
                                 setInvoice(inv);
                                 setActiveTab('create');
                               }}
-                              className="cursor-pointer text-xs font-bold text-[#0070ba] hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 transition"
+                              className="cursor-pointer text-xs font-bold text-slate-600 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 transition"
                             >
-                              Inspect & Dispatch →
+                              Inspect
                             </button>
                             <button
                               type="button"
@@ -449,7 +423,7 @@ function MerchantWorkspace() {
 
       {/* Official PayPal Enterprise Footer */}
       <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
-        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="font-bold text-[#001435]">PayGenie AI • PayPal AI Hackathon 2026</span>
           <span className="text-slate-500">Powered by PayPal Developer Platform & Google Gemini</span>
         </div>
