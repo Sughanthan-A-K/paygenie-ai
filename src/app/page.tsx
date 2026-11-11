@@ -94,7 +94,7 @@ export default function Home() {
                 <span className="font-extrabold text-xl tracking-tight text-[#001435]">
                   PayGenie <span className="text-[#0070ba]">AI</span>
                 </span>
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-[#003087] border border-blue-100">
+                <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-[#003087] border border-blue-200">
                   PayPal Sandbox Ready
                 </span>
               </div>
@@ -103,8 +103,8 @@ export default function Home() {
 
           {/* Dual Sync Badge & Tabs */}
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 border border-slate-300 text-xs font-semibold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-600" />
               <span>Dual-Screen Live Sync: 60% Web / 40% Mobile</span>
             </div>
 
@@ -137,12 +137,12 @@ export default function Home() {
             <div className="lg:col-span-7 space-y-8">
               
               {/* Web Header Badge */}
-              <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-500">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-700">
                 <span className="inline-flex items-center gap-2 text-[#003087]">
                   <Monitor className="w-4 h-4 text-[#0070ba]" />
                   <span>Desktop Workspace (Merchant Console)</span>
                 </span>
-                <span className="text-slate-400">Step-by-step verified billing</span>
+                <span className="text-slate-600">Step-by-step verified billing</span>
               </div>
 
               {/* Editorial Typography Headline */}
@@ -151,9 +151,9 @@ export default function Home() {
                   There’s a plus side to every <br className="hidden sm:inline" />
                   <em className="italic text-[#003087]">bill you send with PayPal.</em>
                 </h1>
-                <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
+                <h2 className="text-sm sm:text-base text-slate-700 leading-relaxed max-w-xl font-normal">
                   Describe hours, projects, or merchandise in freeform text. Google Gemini AI structures verified billing lines while PayPal provides instant checkout.
-                </p>
+                </h2>
               </section>
 
               {/* Step Sequence Pills */}
@@ -203,7 +203,7 @@ export default function Home() {
 
                 {/* Quick Presets */}
                 <div className="space-y-2">
-                  <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                  <span className="text-xs uppercase font-bold text-slate-700 tracking-wider">
                     Quick Scenario Presets:
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -224,8 +224,8 @@ export default function Home() {
                 </div>
 
                 <div className="pt-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-xs text-slate-600 flex items-center gap-1.5 font-medium">
+                    <Lock className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Real-time bidirectional synchronization</span>
                   </span>
 

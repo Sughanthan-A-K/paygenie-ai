@@ -54,13 +54,13 @@ export default function MobileDeviceFrame({
   return (
     <div className="relative mx-auto w-full max-w-[380px] select-none">
       {/* Dynamic Status Tag above Mobile */}
-      <div className="flex items-center justify-between pb-3 px-2 text-xs font-semibold text-slate-500">
+      <div className="flex items-center justify-between pb-3 px-2 text-xs font-semibold text-slate-700">
         <span className="inline-flex items-center gap-1.5 text-[#003087]">
           <Smartphone className="w-3.5 h-3.5" />
           <span>Real-time Mobile Client</span>
         </span>
-        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
+          <span className="w-2 h-2 rounded-full bg-emerald-600" />
           Live Bi-directional Sync
         </span>
       </div>
@@ -101,19 +101,19 @@ export default function MobileDeviceFrame({
                 <span className="font-extrabold text-xs tracking-tight text-[#001435] block">
                   PayGenie <span className="text-[#0070ba]">Pay</span>
                 </span>
-                <span className="text-[9px] text-slate-500 font-medium">Customer View</span>
+                <span className="text-xs text-slate-600 font-medium">Customer Checkout</span>
               </div>
             </div>
 
             {/* Mobile Tab Pills */}
-            <div className="flex bg-slate-200/70 p-0.5 rounded-full text-[11px] font-bold">
+            <div className="flex bg-slate-200/80 p-0.5 rounded-full text-xs font-bold">
               <button
                 type="button"
                 onClick={() => setMobileTab('checkout')}
-                className={`px-2.5 py-1 rounded-full transition cursor-pointer ${
+                className={`px-3 py-1 rounded-full transition cursor-pointer ${
                   mobileTab === 'checkout'
                     ? 'bg-white text-[#003087] shadow-xs'
-                    : 'text-slate-600'
+                    : 'text-slate-700'
                 }`}
               >
                 Bill & Pay
@@ -121,10 +121,10 @@ export default function MobileDeviceFrame({
               <button
                 type="button"
                 onClick={() => setMobileTab('chat')}
-                className={`px-2.5 py-1 rounded-full transition cursor-pointer ${
+                className={`px-3 py-1 rounded-full transition cursor-pointer ${
                   mobileTab === 'chat'
                     ? 'bg-white text-[#003087] shadow-xs'
-                    : 'text-slate-600'
+                    : 'text-slate-700'
                 }`}
               >
                 Prompt
