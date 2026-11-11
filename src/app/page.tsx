@@ -118,7 +118,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#fafbfc] text-[#001435] flex flex-col font-sans">
       {/* Official PayPal Enterprise Global Navigation */}
       <header className="border-b border-slate-200 bg-white sticky top-0 z-50 shadow-xs">
-        <div className="max-w-[1500px] mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           
           {/* Authentic PayPal Brand Monogram & Product Title */}
           <div className="flex items-center gap-3">
@@ -191,17 +191,17 @@ export default function Home() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-[1500px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-10">
+      <main className="flex-1 max-w-[1380px] w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {activeTab === 'create' ? (
           <div className="space-y-8">
             
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="flex flex-col lg:flex-row gap-6 xl:gap-8 items-start">
               
               {/* ======================================================== */}
               {/* LEFT: WEB/DESKTOP WORKSPACE                             */}
               {/* ======================================================== */}
               {(viewMode === 'both' || viewMode === 'web') && (
-                <div className={`${viewMode === 'both' ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-8`}>
+                <div className={`${viewMode === 'both' ? 'flex-1 min-w-0' : 'w-full'} space-y-8`}>
                   
                   {/* Web Header Badge */}
                   <div className="flex items-center justify-between pb-2 border-b border-slate-200 text-xs font-semibold text-slate-700">
@@ -349,7 +349,7 @@ export default function Home() {
               {/* RIGHT: REALISTIC MOBILE PHONE VIEW                     */}
               {/* ======================================================== */}
               {(viewMode === 'both' || viewMode === 'mobile') && (
-                <div className={`${viewMode === 'both' ? 'lg:col-span-4' : 'lg:col-span-12 max-w-md mx-auto'} sticky top-24 self-start`}>
+                <div className={`${viewMode === 'both' ? 'w-full lg:w-[380px] shrink-0' : 'w-full max-w-[380px] mx-auto'} sticky top-24 self-start`}>
                   <MobileDeviceFrame
                     prompt={prompt}
                     setPrompt={setPrompt}
@@ -501,7 +501,7 @@ export default function Home() {
 
       {/* Official PayPal Enterprise Footer */}
       <footer className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
-        <div className="max-w-[1500px] mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="max-w-[1380px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="font-bold text-[#001435]">PayGenie AI • PayPal AI Hackathon 2026</span>
           <span className="text-slate-500">Powered by PayPal Developer Platform & Google Gemini</span>
         </div>
