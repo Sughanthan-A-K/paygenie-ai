@@ -156,7 +156,7 @@ export default function MobileDeviceFrame({
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Type invoice instructions here or on the desktop view..."
-                    className="w-full bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] focus:outline-none focus:border-[#0070ba]"
+                    className="w-full min-h-[90px] max-h-[160px] bg-white border border-slate-300 rounded-xl p-2.5 text-xs text-[#001435] focus:outline-none focus:border-[#0070ba] resize-none"
                   />
                   <button
                     type="button"
