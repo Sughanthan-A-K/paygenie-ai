@@ -3,7 +3,7 @@ import { query } from '@/lib/db';
 
 export async function POST() {
   try {
-    // 1. Create Invoices Table
+    // 1. Invoices Table
     await query(`
       CREATE TABLE IF NOT EXISTS invoices (
         id VARCHAR(100) PRIMARY KEY,
@@ -33,14 +33,38 @@ export async function POST() {
       );
     `);
 
-    // 2. Query count to prove live execution
-    const res = await query('SELECT count(*) FROM invoices;');
-    const count = res.rows[0]?.count || 0;
+    // 2. Clients Table (Dedicated Backend persistence)
+    await query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id VARCHAR(100) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone VARCHAR(50),
+        company VARCHAR(255),
+        preferred_language VARCHAR(50) DEFAULT 'English',
+        avatar_bg VARCHAR(50) DEFAULT 'bg-blue-600',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // 3. Client Messages Table (Chat history per client)
+    await query(`
+      CREATE TABLE IF NOT EXISTS client_messages (
+        id VARCHAR(100) PRIMARY KEY,
+        client_id VARCHAR(100) NOT NULL,
+        role VARCHAR(20) NOT NULL,
+        content TEXT NOT NULL,
+        timestamp VARCHAR(50),
+        invoice_draft JSONB,
+        is_confirmed BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
 
     return NextResponse.json({
       ok: true,
-      message: 'Verified! Neon PostgreSQL connected and table created successfully.',
-      invoiceCount: count,
+      message: 'Verified! Neon PostgreSQL connected: invoices, clients, and client_messages tables ready.',
     });
   } catch (error: any) {
     console.error('Database init error:', error);

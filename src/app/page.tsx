@@ -69,41 +69,7 @@ const DEFAULT_MERCHANT: MerchantProfile = {
   geminiApiKey: '',
 };
 
-const DEFAULT_CLIENTS: ClientProfile[] = [
-  {
-    id: 'client-1',
-    name: 'Acme Tech',
-    email: 'billing@acmetech.com',
-    company: 'Acme Innovations Ltd.',
-    preferredLanguage: 'English',
-    avatarBg: 'bg-blue-600',
-    createdAt: '2026-03-01',
-    messages: [],
-    invoices: [],
-  },
-  {
-    id: 'client-2',
-    name: 'Nexus Labs',
-    email: 'finance@nexuslabs.co',
-    company: 'Nexus Software Studio',
-    preferredLanguage: 'English',
-    avatarBg: 'bg-indigo-600',
-    createdAt: '2026-03-05',
-    messages: [],
-    invoices: [],
-  },
-  {
-    id: 'client-3',
-    name: 'Bloom Bakery',
-    email: 'hello@bloombakery.com',
-    company: 'Bloom Bakery & Cafe',
-    preferredLanguage: 'English',
-    avatarBg: 'bg-emerald-600',
-    createdAt: '2026-03-10',
-    messages: [],
-    invoices: [],
-  },
-];
+const DEFAULT_CLIENTS: ClientProfile[] = [];
 
 function MainAppContent() {
   const searchParams = useSearchParams();
@@ -132,9 +98,9 @@ function MerchantWorkspace() {
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'ledger'>('chat');
   
-  // Clients & Sidebar state
-  const [clients, setClients] = useState<ClientProfile[]>(DEFAULT_CLIENTS);
-  const [selectedClientId, setSelectedClientId] = useState<string>(DEFAULT_CLIENTS[0].id);
+  // Clients & Sidebar state (Starts empty initially)
+  const [clients, setClients] = useState<ClientProfile[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   
@@ -231,64 +197,62 @@ function MerchantWorkspace() {
     .filter((i) => i.status !== 'PAID')
     .reduce((sum, i) => sum + i.totalAmount, 0);
 
-  // Load from local storage on mount
+  // Load clients from Neon Postgres Database (with fast local fallback)
   useEffect(() => {
-    try {
-      // Versioned key to ensure fresh chat starting state without old hardcoded AI messages
-      const storageKey = 'paygenie_clients_v3';
-      const storedClients = localStorage.getItem(storageKey);
-      const savedActiveClientId = localStorage.getItem('paygenie_selected_client_id');
-
-      if (storedClients) {
-        const parsed = JSON.parse(storedClients);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setClients(parsed);
-          // Persist the exact client thread the user was viewing
-          if (savedActiveClientId && parsed.some((c: any) => c.id === savedActiveClientId)) {
-            setSelectedClientId(savedActiveClientId);
-          } else {
-            setSelectedClientId(parsed[0].id);
-          }
-        }
-      } else {
-        // First load of v3: strip old seeded assistant starter messages from legacy cache
-        const oldV2 = localStorage.getItem('paygenie_clients_v2');
-        if (oldV2) {
-          try {
-            const parsedOld = JSON.parse(oldV2);
-            if (Array.isArray(parsedOld)) {
-              const cleaned = parsedOld.map((c: any) => ({
-                ...c,
-                messages: (c.messages || []).filter((m: any) => m.id !== 'msg-1' && m.id !== 'msg-2' && m.id !== 'msg-3'),
-              }));
-              setClients(cleaned);
-              if (savedActiveClientId && cleaned.some((c: any) => c.id === savedActiveClientId)) {
-                setSelectedClientId(savedActiveClientId);
-              } else {
-                setSelectedClientId(cleaned[0]?.id || DEFAULT_CLIENTS[0].id);
-              }
-              localStorage.setItem(storageKey, JSON.stringify(cleaned));
+    async function loadData() {
+      try {
+        const savedActiveClientId = localStorage.getItem('paygenie_selected_client_id');
+        
+        // 1. Fetch from Neon Postgres backend API
+        const res = await fetch('/api/clients');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && Array.isArray(data.clients)) {
+            setClients(data.clients);
+            if (savedActiveClientId && data.clients.some((c: any) => c.id === savedActiveClientId)) {
+              setSelectedClientId(savedActiveClientId);
+            } else if (data.clients.length > 0) {
+              setSelectedClientId(data.clients[0].id);
+            } else {
+              setSelectedClientId('');
             }
-          } catch (e) {
-            console.error(e);
+            saveClientsToStorage(data.clients, false);
+            setIsStorageLoaded(true);
+            return;
           }
-        } else {
-          // Initialize with clean empty messages
-          localStorage.setItem(storageKey, JSON.stringify(DEFAULT_CLIENTS));
         }
-      }
 
+        // 2. Fallback to localStorage if offline
+        const storageKey = 'paygenie_clients_v4';
+        const storedClients = localStorage.getItem(storageKey);
+        if (storedClients) {
+          const parsed = JSON.parse(storedClients);
+          if (Array.isArray(parsed)) {
+            setClients(parsed);
+            if (savedActiveClientId && parsed.some((c: any) => c.id === savedActiveClientId)) {
+              setSelectedClientId(savedActiveClientId);
+            } else if (parsed.length > 0) {
+              setSelectedClientId(parsed[0].id);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Load data error:', e);
+      } finally {
+        setIsStorageLoaded(true);
+      }
+    }
+
+    loadData();
+
+    try {
       const storedMerchant = localStorage.getItem('paygenie_merchant_profile');
       if (storedMerchant) {
         setMerchantProfile(JSON.parse(storedMerchant));
       }
-
-      // Load custom templates
       reloadAppTemplates();
     } catch (e) {
       console.error(e);
-    } finally {
-      setIsStorageLoaded(true);
     }
 
     // Real-time settlement & cross-tab chat live sync listener
@@ -466,21 +430,29 @@ function MerchantWorkspace() {
   const handleDeleteClient = (clientId: string) => {
     const target = clients.find((c) => c.id === clientId);
     if (!target) return;
-    if (clients.length <= 1) {
-      toast.error('At least one client thread must remain in workspace.');
-      return;
-    }
 
     openConfirmation({
       title: `Delete Client ${target.name}`,
       description: `Are you sure you want to delete ${target.name} and all related invoices and chat logs? This action cannot be reversed.`,
       confirmText: 'Delete Client',
       isDestructive: true,
-      onConfirm: () => {
+      onConfirm: async () => {
         const remaining = clients.filter((c) => c.id !== clientId);
         setClients(remaining);
-        setSelectedClientId(remaining[0].id);
+        setSelectedClientId(remaining.length > 0 ? remaining[0].id : '');
         saveClientsToStorage(remaining);
+
+        // Neon Postgres DB delete API call
+        try {
+          await fetch('/api/clients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'DELETE_CLIENT', clientId }),
+          });
+        } catch (e) {
+          console.error(e);
+        }
+
         toast.success(`Client ${target.name} removed.`);
       },
     });
@@ -506,26 +478,34 @@ function MerchantWorkspace() {
       return;
     }
 
-    if (selectedClientIds.length >= clients.length) {
-      toast.error('At least one client thread must remain in workspace.');
-      return;
-    }
-
     const count = selectedClientIds.length;
     openConfirmation({
       title: `Delete ${count} Selected Client${count > 1 ? 's' : ''}`,
       description: `Are you sure you want to delete ${count} client profile${count > 1 ? 's' : ''} along with their chat histories and invoice drafts? This cannot be undone.`,
       confirmText: `Delete ${count} Client${count > 1 ? 's' : ''}`,
       isDestructive: true,
-      onConfirm: () => {
+      onConfirm: async () => {
         const remaining = clients.filter((c) => !selectedClientIds.includes(c.id));
+        const idsToDelete = [...selectedClientIds];
         setClients(remaining);
         setSelectedClientIds([]);
         setIsSelectMode(false);
         if (!remaining.some((c) => c.id === selectedClientId)) {
-          setSelectedClientId(remaining[0].id);
+          setSelectedClientId(remaining.length > 0 ? remaining[0].id : '');
         }
         saveClientsToStorage(remaining);
+
+        // Neon Postgres DB bulk delete API call
+        try {
+          await fetch('/api/clients', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'BULK_DELETE_CLIENTS', clientIds: idsToDelete }),
+          });
+        } catch (e) {
+          console.error(e);
+        }
+
         toast.success(`Deleted ${count} client${count > 1 ? 's' : ''} successfully.`);
       },
     });
@@ -568,6 +548,17 @@ function MerchantWorkspace() {
       setClients(updated);
       saveClientsToStorage(updated);
       setIsNewClientModalOpen(false);
+
+      // Neon Postgres DB update API call
+      const editedClient = updated.find((c) => c.id === editingClientId);
+      if (editedClient) {
+        fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'CREATE_CLIENT', client: editedClient }),
+        }).catch(console.error);
+      }
+
       toast.success(`Client ${cleanName} updated successfully!`);
       return;
     }
@@ -591,6 +582,13 @@ function MerchantWorkspace() {
     setClients(updated);
     setSelectedClientId(newClient.id);
     saveClientsToStorage(updated);
+
+    // Neon Postgres DB create API call
+    fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'CREATE_CLIENT', client: newClient }),
+    }).catch(console.error);
     
     // Reset form
     setNewClientName('');
@@ -684,6 +682,17 @@ function MerchantWorkspace() {
         saveClientsToStorage(upd);
         return upd;
       });
+
+      // Neon Postgres DB persist AI reply
+      fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_MESSAGE',
+          clientId: activeClient.id,
+          message: aiMsg,
+        }),
+      }).catch(console.error);
     } catch (err: any) {
       toast.error(err.message || 'AI message failed');
     } finally {
@@ -1099,67 +1108,87 @@ function MerchantWorkspace() {
 
           {/* Client List Items */}
           <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 p-2 space-y-1">
-            {filteredClients.map((c) => {
-              const isSelected = c.id === selectedClientId;
-              const isChecked = selectedClientIds.includes(c.id);
-              const pendingCount = (c.invoices || []).filter((i) => i.status !== 'PAID').length;
-
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    if (isSelectMode) {
-                      handleToggleSelectClient(c.id);
-                    } else {
-                      handleSelectClient(c.id);
-                      if (activeTab === 'ledger') setActiveTab('chat');
-                    }
-                  }}
-                  className={`w-full text-left p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 ${
-                    isSelected && !isSelectMode
-                      ? 'bg-blue-50/90 border border-blue-200 shadow-2xs'
-                      : isChecked
-                      ? 'bg-blue-50/60 border border-blue-300 shadow-2xs'
-                      : 'hover:bg-slate-50 border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 truncate">
-                    {/* Checkbox in Multi-Select Mode */}
-                    {isSelectMode ? (
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleSelectClient(c.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 text-[#0070ba] rounded cursor-pointer shrink-0"
-                      />
-                    ) : null}
-
-                    <div className={`w-9 h-9 rounded-xl ${c.avatarBg || 'bg-blue-600'} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs`}>
-                      {c.name.slice(0, 1)}
-                    </div>
-                    <div className="truncate">
-                      <p className={`text-sm font-bold truncate ${isSelected && !isSelectMode ? 'text-[#003087]' : 'text-[#001435]'}`}>
-                        {c.name}
-                      </p>
-                      <p className="text-[11px] text-slate-500 truncate">{c.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-end shrink-0 gap-1">
-                    {generatingClientId === c.id ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0070ba] bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
-                        <RefreshCw className="w-2.5 h-2.5 animate-spin" /> thinking
-                      </span>
-                    ) : pendingCount > 0 ? (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                        {pendingCount} due
-                      </span>
-                    ) : null}
-                  </div>
+            {filteredClients.length === 0 ? (
+              <div className="text-center py-12 px-4 space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-[#003087] flex items-center justify-center mx-auto border border-blue-200">
+                  <Users className="w-5 h-5 text-[#0070ba]" />
                 </div>
-              );
-            })}
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-800">No Clients Added Yet</p>
+                  <p className="text-[11px] text-slate-400">Click &ldquo;+ Add Client&rdquo; above to create your first client and start invoicing.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddClientModal}
+                  className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#003087] hover:bg-[#0070e0] px-4 py-1.5 rounded-full shadow-2xs transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add First Client</span>
+                </button>
+              </div>
+            ) : (
+              filteredClients.map((c) => {
+                const isSelected = c.id === selectedClientId;
+                const isChecked = selectedClientIds.includes(c.id);
+                const pendingCount = (c.invoices || []).filter((i) => i.status !== 'PAID').length;
+
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => {
+                      if (isSelectMode) {
+                        handleToggleSelectClient(c.id);
+                      } else {
+                        handleSelectClient(c.id);
+                        if (activeTab === 'ledger') setActiveTab('chat');
+                      }
+                    }}
+                    className={`w-full text-left p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected && !isSelectMode
+                        ? 'bg-blue-50/90 border border-blue-200 shadow-2xs'
+                        : isChecked
+                        ? 'bg-blue-50/60 border border-blue-300 shadow-2xs'
+                        : 'hover:bg-slate-50 border border-transparent'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      {/* Checkbox in Multi-Select Mode */}
+                      {isSelectMode ? (
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectClient(c.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-[#0070ba] rounded cursor-pointer shrink-0"
+                        />
+                      ) : null}
+
+                      <div className={`w-9 h-9 rounded-xl ${c.avatarBg || 'bg-blue-600'} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs`}>
+                        {c.name.slice(0, 1)}
+                      </div>
+                      <div className="truncate">
+                        <p className={`text-sm font-bold truncate ${isSelected && !isSelectMode ? 'text-[#003087]' : 'text-[#001435]'}`}>
+                          {c.name}
+                        </p>
+                        <p className="text-[11px] text-slate-500 truncate">{c.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end shrink-0 gap-1">
+                      {generatingClientId === c.id ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0070ba] bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                          <RefreshCw className="w-2.5 h-2.5 animate-spin" /> thinking
+                        </span>
+                      ) : pendingCount > 0 ? (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                          {pendingCount} due
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
         </aside>
@@ -1173,6 +1202,28 @@ function MerchantWorkspace() {
             /* ======================================= */
             /* DEDICATED CLIENT CONVERSATIONAL CHAT    */
             /* ======================================= */
+            !activeClient ? (
+              /* No Client Selected Empty Slate */
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4 my-auto">
+                <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#003087] shadow-sm">
+                  <Users className="w-8 h-8 text-[#0070ba]" />
+                </div>
+                <div className="space-y-1.5 max-w-sm">
+                  <h3 className="text-xl font-extrabold text-[#001435]">No Client Selected</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                    Add a client on the left roster to open an isolated conversational billing thread and draft invoices.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenAddClientModal}
+                  className="pp-button-primary !py-2.5 !px-5 !text-xs flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Client</span>
+                </button>
+              </div>
+            ) : (
             <div className="flex flex-col h-full min-h-0 animate-fade-in">
               
               {/* Chat Header with Client Name, Phone, Edit/Delete & Language Selector */}
@@ -1636,6 +1687,7 @@ function MerchantWorkspace() {
               </div>
 
             </div>
+            )
           ) : (
             /* ======================================= */
             /* MASTER SETTLEMENT LEDGER (All Clients)  */
