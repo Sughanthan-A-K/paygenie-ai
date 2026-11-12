@@ -25,6 +25,7 @@ export default function ClientPayPortal() {
   const invoiceId = searchParams.get('invoice');
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showPayPalCheckout, setShowPayPalCheckout] = useState(false);
 
   useEffect(() => {
     try {
@@ -97,9 +98,26 @@ export default function ClientPayPortal() {
   }, [invoiceId]);
 
   const fireSuccessCelebration = () => {
+    const phoneScreen = document.getElementById('phone-screen-container');
+    if (phoneScreen) {
+      const rect = phoneScreen.getBoundingClientRect();
+      // Calculate normalized origin coordinates inside the mobile screen
+      const originX = (rect.left + rect.width / 2) / window.innerWidth;
+      const originY = (rect.top + rect.height * 0.4) / window.innerHeight;
+
+      // Confetti burst confined towards the phone screen
+      confetti({
+        particleCount: 80,
+        spread: 60,
+        origin: { x: originX, y: originY },
+        zIndex: 50,
+      });
+      return;
+    }
+
     confetti({
-      particleCount: 120,
-      spread: 80,
+      particleCount: 100,
+      spread: 70,
       origin: { y: 0.6 },
     });
   };
@@ -239,6 +257,7 @@ export default function ClientPayPortal() {
     setInvoice(updated);
 
     try {
+      // 1. Update paygenie_invoices
       const stored = localStorage.getItem('paygenie_invoices');
       if (stored) {
         const list: InvoiceData[] = JSON.parse(stored);
@@ -246,6 +265,24 @@ export default function ClientPayPortal() {
           i.invoiceNumber === updated.invoiceNumber ? updated : i
         );
         localStorage.setItem('paygenie_invoices', JSON.stringify(updatedList));
+      }
+
+      // 2. Also directly update paygenie_clients_v2 in localStorage so ledger displays immediately
+      const storedClients = localStorage.getItem('paygenie_clients_v2');
+      if (storedClients) {
+        const clients = JSON.parse(storedClients);
+        const updatedClients = clients.map((c: any) => ({
+          ...c,
+          invoices: (c.invoices || []).map((i: InvoiceData) =>
+            i.invoiceNumber === updated.invoiceNumber ? updated : i
+          ),
+          messages: (c.messages || []).map((m: any) =>
+            m.invoiceDraft?.invoiceNumber === updated.invoiceNumber
+              ? { ...m, invoiceDraft: updated }
+              : m
+          ),
+        }));
+        localStorage.setItem('paygenie_clients_v2', JSON.stringify(updatedClients));
       }
     } catch (e) {
       console.error(e);
@@ -304,7 +341,10 @@ export default function ClientPayPortal() {
         <div className="absolute -right-1 top-32 h-16 w-1 rounded-r bg-slate-500" />
 
         {/* Inner Phone Screen Container */}
-        <div className="relative overflow-hidden rounded-[40px] bg-white border border-slate-200 h-[740px] flex flex-col text-[#001435]">
+        <div 
+          id="phone-screen-container" 
+          className="relative overflow-hidden rounded-[40px] bg-white border border-slate-200 h-[740px] flex flex-col text-[#001435]"
+        >
           
           {/* iOS / Smartphone Status Bar */}
           <div className="h-11 bg-white flex items-center justify-between px-6 pt-2 shrink-0 z-20">
@@ -464,11 +504,23 @@ export default function ClientPayPortal() {
                     TX: {invoice.paymentId || 'PAYPAL-CAPTURED'}
                   </div>
                 </div>
+              ) : !showPayPalCheckout ? (
+                /* Primary Instant "Pay Now" Trigger Button */
+                <button
+                  type="button"
+                  onClick={() => setShowPayPalCheckout(true)}
+                  className="w-full h-11 rounded-full bg-[#0070ba] hover:bg-[#003087] text-white font-bold text-sm transition shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  <PayGenieLogo size={20} showText={false} />
+                  <span>Pay Now — ${invoice.totalAmount.toFixed(2)}</span>
+                </button>
               ) : (
-                <PayPalButtonsContainer
-                  invoice={invoice}
-                  onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
-                />
+                <div className="animate-fade-in">
+                  <PayPalButtonsContainer
+                    invoice={invoice}
+                    onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
+                  />
+                </div>
               )}
             </div>
 

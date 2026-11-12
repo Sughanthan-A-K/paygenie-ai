@@ -152,6 +152,7 @@ function MerchantWorkspace() {
   // Modal inspection
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalPreviewOnly, setIsModalPreviewOnly] = useState(false);
   const [isClientInvoicesDropdownOpen, setIsClientInvoicesDropdownOpen] = useState(false);
   const [invoiceDropdownSearch, setInvoiceDropdownSearch] = useState('');
 
@@ -284,6 +285,20 @@ function MerchantWorkspace() {
 
     // Real-time settlement & cross-tab chat live sync listener
     let channel: BroadcastChannel | null = null;
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'paygenie_clients_v2' && e.newValue) {
+        try {
+          const freshClients = JSON.parse(e.newValue);
+          if (Array.isArray(freshClients)) {
+            setClients(freshClients);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
     try {
       channel = new BroadcastChannel('paygenie_live_sync');
       channel.onmessage = (event) => {
@@ -291,12 +306,17 @@ function MerchantWorkspace() {
           const { invoiceNumber, paymentId, paidAt } = event.data;
           
           setClients((prev) => {
-            const updated = prev.map((c) => ({
+            const updated: ClientProfile[] = prev.map((c) => ({
               ...c,
               invoices: (c.invoices || []).map((inv) =>
                 inv.invoiceNumber === invoiceNumber
                   ? { ...inv, status: 'PAID' as const, paymentId, paidAt }
                   : inv
+              ),
+              messages: (c.messages || []).map((m) =>
+                m.invoiceDraft && m.invoiceDraft.invoiceNumber === invoiceNumber
+                  ? { ...m, invoiceDraft: { ...m.invoiceDraft, status: 'PAID' as const, paymentId, paidAt } }
+                  : m
               ),
             }));
             saveClientsToStorage(updated, false); // Don't broadcast back
@@ -323,6 +343,7 @@ function MerchantWorkspace() {
     }
 
     return () => {
+      window.removeEventListener('storage', handleStorageChange);
       if (channel) channel.close();
     };
   }, []);
@@ -1317,6 +1338,7 @@ function MerchantWorkspace() {
                               type="button"
                               onClick={() => {
                                 setSelectedInvoice(msg.invoiceDraft!);
+                                setIsModalPreviewOnly(true);
                                 setIsModalOpen(true);
                               }}
                               className="cursor-pointer inline-flex items-center gap-1.5 text-sm font-bold text-[#003087] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl border border-blue-200 transition"
@@ -1528,6 +1550,7 @@ function MerchantWorkspace() {
                                 type="button"
                                 onClick={() => {
                                   setSelectedInvoice(inv);
+                                  setIsModalPreviewOnly(false);
                                   setIsModalOpen(true);
                                 }}
                                 className="cursor-pointer text-xs font-bold text-[#0070ba] hover:bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 transition inline-flex items-center gap-1 shadow-2xs"
@@ -1670,8 +1693,12 @@ function MerchantWorkspace() {
         <InvoiceModal
           isOpen={isModalOpen}
           invoice={selectedInvoice}
+          previewOnly={isModalPreviewOnly}
           preferredLanguage={activeClient?.preferredLanguage || 'English'}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => {
+            setIsModalOpen(false);
+            setIsModalPreviewOnly(false);
+          }}
           onUpdate={handleUpdateInvoice}
           onDelete={handleDeleteLedgerItem}
         />

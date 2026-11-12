@@ -34,6 +34,7 @@ interface InvoiceModalProps {
   onUpdate: (updated: InvoiceData) => void;
   onDelete?: (invoiceNumber: string) => void;
   preferredLanguage?: 'English' | 'Tanglish' | 'Tamil';
+  previewOnly?: boolean;
 }
 
 export default function InvoiceModal({
@@ -44,6 +45,7 @@ export default function InvoiceModal({
   onDelete,
   preferredLanguage = 'English',
   initialTab = 'invoice',
+  previewOnly = false,
 }: InvoiceModalProps & { initialTab?: 'invoice' | 'email' | 'whatsapp' }) {
   const [activeTab, setActiveTab] = useState<'invoice' | 'email' | 'whatsapp'>(initialTab);
   const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
@@ -58,15 +60,20 @@ export default function InvoiceModal({
   const [editPrompt, setEditPrompt] = useState('');
   const [isAiUpdating, setIsAiUpdating] = useState(false);
 
+  // Staged AI Proposed Changes for Invoice Details (Requires explicit User Confirmation before save)
+  const [proposedInvoice, setProposedInvoice] = useState<InvoiceData | null>(null);
+
   // Email & WhatsApp message states
   const [emailSubject, setEmailSubject] = useState(invoice.emailDraft?.subject || `Invoice ${invoice.invoiceNumber}`);
   const [emailBody, setEmailBody] = useState(invoice.emailDraft?.body || '');
   const [isEditingEmailManual, setIsEditingEmailManual] = useState(false);
+  const [proposedEmailDraft, setProposedEmailDraft] = useState<{ subject: string; body: string } | null>(null);
 
   // WhatsApp Message custom state (Editable via AI or manual unlock)
   const defaultWhatsAppText = `Hello ${invoice.clientName || 'there'}! Here is your official invoice ${invoice.invoiceNumber} for $${invoice.totalAmount.toFixed(2)} ${invoice.currency || 'USD'}.\n\nYou can easily review, download the PDF and settle securely via PayPal here:\n${typeof window !== 'undefined' ? window.location.origin : ''}/?invoice=${invoice.invoiceNumber}\n\nThank you for your business!`;
   const [whatsAppText, setWhatsAppText] = useState(defaultWhatsAppText);
   const [isEditingWhatsAppManual, setIsEditingWhatsAppManual] = useState(false);
+  const [proposedWhatsAppText, setProposedWhatsAppText] = useState<string | null>(null);
 
   // Template Manager Modal state & dynamic template list
   const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
@@ -89,6 +96,9 @@ export default function InvoiceModal({
     setShowEditBox(false);
     setIsEditingEmailManual(false);
     setIsEditingWhatsAppManual(false);
+    setProposedInvoice(null);
+    setProposedEmailDraft(null);
+    setProposedWhatsAppText(null);
   }, [isOpen, invoice.invoiceNumber, initialTab]);
 
   if (!isOpen) return null;
@@ -312,16 +322,37 @@ export default function InvoiceModal({
         if (!res.ok) throw new Error(data.error || 'Failed to update with AI');
 
         if (data.reply) {
-          // Clean quotes if returned
           const cleanText = data.reply.replace(/^["']|["']$/g, '').trim();
-          setWhatsAppText(cleanText);
-          toast.success('WhatsApp text updated with AI polish!');
+          setProposedWhatsAppText(cleanText);
+          toast('AI proposed WhatsApp update! Review and save below.', { icon: '✨' });
+        }
+      } else if (activeTab === 'email') {
+        const promptInstruction = `Update the emailDraft for invoice ${invoice.invoiceNumber}. Tone/instruction: ${editPrompt}`;
+
+        const res = await fetch('/api/genie-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userMessage: promptInstruction,
+            currentInvoice: invoice,
+            clientProfile: { name: invoice.clientName, email: invoice.clientEmail },
+            preferredLanguage,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update with AI');
+
+        if (data.invoice?.emailDraft) {
+          setProposedEmailDraft({
+            subject: data.invoice.emailDraft.subject,
+            body: data.invoice.emailDraft.body,
+          });
+          toast('AI proposed email draft! Review and save below.', { icon: '✨' });
         }
       } else {
-        const isEmailAction = activeTab === 'email';
-        const promptInstruction = isEmailAction
-          ? `Update the emailDraft for invoice ${invoice.invoiceNumber}. Tone/instruction: ${editPrompt}`
-          : `Update invoice ${invoice.invoiceNumber}: ${editPrompt}`;
+        // Invoice Details Tab
+        const promptInstruction = `Modify and update existing invoice ${invoice.invoiceNumber} with these changes: ${editPrompt}. Keep same invoiceNumber ${invoice.invoiceNumber} and client ${invoice.clientName}.`;
 
         const res = await fetch('/api/genie-chat', {
           method: 'POST',
@@ -338,12 +369,9 @@ export default function InvoiceModal({
         if (!res.ok) throw new Error(data.error || 'Failed to update with AI');
 
         if (data.invoice) {
-          onUpdate(data.invoice);
-          toast.success(isEmailAction ? 'Email draft updated by AI!' : 'Invoice updated by AI!');
-          if (data.invoice.emailDraft) {
-            setEmailSubject(data.invoice.emailDraft.subject);
-            setEmailBody(data.invoice.emailDraft.body);
-          }
+          // Do NOT auto-save immediately. Stage it as a proposed draft for user confirmation!
+          setProposedInvoice(data.invoice);
+          toast('AI proposed invoice changes! Review and confirm below.', { icon: '✨' });
         }
       }
       setEditPrompt('');
@@ -353,6 +381,58 @@ export default function InvoiceModal({
     } finally {
       setIsAiUpdating(false);
     }
+  };
+
+  // User explicitly confirms & applies the AI proposed invoice
+  const handleConfirmProposedInvoice = () => {
+    if (!proposedInvoice) return;
+    onUpdate(proposedInvoice);
+    toast.success(`Invoice ${proposedInvoice.invoiceNumber} updated & saved!`);
+    setProposedInvoice(null);
+  };
+
+  // User reverts / cancels the AI proposed invoice
+  const handleRevertProposedInvoice = () => {
+    setProposedInvoice(null);
+    toast('Changes reverted to original invoice.', { icon: '↩️' });
+  };
+
+  // User accepts proposed email draft
+  const handleConfirmProposedEmail = () => {
+    if (!proposedEmailDraft) return;
+    setEmailSubject(proposedEmailDraft.subject);
+    setEmailBody(proposedEmailDraft.body);
+    const updated: InvoiceData = {
+      ...invoice,
+      emailDraft: {
+        subject: proposedEmailDraft.subject,
+        body: proposedEmailDraft.body,
+        template: invoice.emailDraft?.template,
+      },
+    };
+    onUpdate(updated);
+    toast.success('Email draft confirmed & saved!');
+    setProposedEmailDraft(null);
+  };
+
+  // User reverts proposed email draft
+  const handleRevertProposedEmail = () => {
+    setProposedEmailDraft(null);
+    toast('Email draft changes discarded.', { icon: '↩️' });
+  };
+
+  // User accepts proposed WhatsApp text
+  const handleConfirmProposedWhatsApp = () => {
+    if (!proposedWhatsAppText) return;
+    setWhatsAppText(proposedWhatsAppText);
+    toast.success('WhatsApp message confirmed!');
+    setProposedWhatsAppText(null);
+  };
+
+  // User reverts proposed WhatsApp text
+  const handleRevertProposedWhatsApp = () => {
+    setProposedWhatsAppText(null);
+    toast('WhatsApp changes discarded.', { icon: '↩️' });
   };
 
   const handleSaveManualEmail = () => {
@@ -531,80 +611,186 @@ export default function InvoiceModal({
           </div>
         )}
 
-        {/* Client Pay URL Share Bar with Test View & Copy Link */}
-        <div className="bg-blue-50/70 border-b border-blue-100 px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-600 truncate max-w-md font-mono">
-            <span className="font-bold text-[#003087]">Client Pay URL:</span>
-            <span className="truncate bg-white px-2.5 py-1 rounded border border-blue-200">{clientPayUrl}</span>
-          </div>
+        {/* Client Pay URL Share Bar with Test View & Copy Link (Hidden in Preview Only Mode) */}
+        {!previewOnly && (
+          <div className="bg-blue-50/70 border-b border-blue-100 px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-600 truncate max-w-md font-mono">
+              <span className="font-bold text-[#003087]">Client Pay URL:</span>
+              <span className="truncate bg-white px-2.5 py-1 rounded border border-blue-200">{clientPayUrl}</span>
+            </div>
 
-          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="inline-flex items-center gap-1.5 text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-300 shadow-2xs transition cursor-pointer"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Copied' : 'Copy Pay Link'}</span>
+              </button>
+              
+              <a
+                href={clientPayUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={syncCurrentInvoiceToStorage}
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#003087] bg-white hover:bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 shadow-2xs transition"
+              >
+                <span>Test Client Mobile View</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* AI Proposed Changes Banner (Stage review with Revert & Save actions) */}
+        {activeTab === 'invoice' && proposedInvoice && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+              <div>
+                <p className="text-xs font-bold text-amber-900 flex items-center gap-1">
+                  <span>AI Proposed Changes Staged for Review</span>
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                    Total: ${proposedInvoice.totalAmount.toFixed(2)} (was ${invoice.totalAmount.toFixed(2)})
+                  </span>
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  Review the updated line items below. Changes will only apply to chat & ledger once confirmed.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRevertProposedInvoice}
+                className="cursor-pointer text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition shadow-2xs"
+              >
+                ↩️ Discard / Revert
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmProposedInvoice}
+                className="cursor-pointer text-xs font-bold px-4 py-1.5 rounded-full bg-[#003087] text-white hover:bg-[#002466] transition shadow-xs flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Confirm & Save Changes</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AI Proposed Email Draft Banner */}
+        {activeTab === 'email' && proposedEmailDraft && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+              <div>
+                <p className="text-xs font-bold text-amber-900">AI Proposed New Email Subject & Body</p>
+                <p className="text-[11px] text-amber-700">Preview below. Click Accept to update the official client draft or Discard to keep previous.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRevertProposedEmail}
+                className="cursor-pointer text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition shadow-2xs"
+              >
+                ↩️ Discard
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmProposedEmail}
+                className="cursor-pointer text-xs font-bold px-4 py-1.5 rounded-full bg-[#003087] text-white hover:bg-[#002466] transition shadow-xs flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Confirm Email Draft</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* AI Proposed WhatsApp Banner */}
+        {activeTab === 'whatsapp' && proposedWhatsAppText && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div>
+                <p className="text-xs font-bold text-amber-900">AI Proposed Polished WhatsApp Message</p>
+                <p className="text-[11px] text-amber-700">Review message below. Click Accept to update or Discard to revert.</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRevertProposedWhatsApp}
+                className="cursor-pointer text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 transition shadow-2xs"
+              >
+                ↩️ Discard
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmProposedWhatsApp}
+                className="cursor-pointer text-xs font-bold px-4 py-1.5 rounded-full bg-[#003087] text-white hover:bg-[#002466] transition shadow-xs flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Confirm WhatsApp Text</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs (Hidden in Preview Only Mode) */}
+        {!previewOnly && (
+          <div className="flex border-b border-slate-200 px-6 bg-white gap-6 text-sm font-bold">
             <button
-              type="button"
-              onClick={handleCopyLink}
-              className="inline-flex items-center gap-1.5 text-xs font-bold bg-white text-slate-700 hover:bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-300 shadow-2xs transition cursor-pointer"
+              onClick={() => setActiveTab('invoice')}
+              className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
+                activeTab === 'invoice'
+                  ? 'border-[#003087] text-[#003087]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
             >
-              {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copiedLink ? 'Copied' : 'Copy Pay Link'}</span>
+              <FileText className="w-4 h-4" />
+              <span>Invoice Details</span>
             </button>
-            
-            <a
-              href={clientPayUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={syncCurrentInvoiceToStorage}
-              className="inline-flex items-center gap-1 text-xs font-bold text-[#003087] bg-white hover:bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 shadow-2xs transition"
+
+            <button
+              onClick={() => setActiveTab('email')}
+              className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
+                activeTab === 'email'
+                  ? 'border-rose-500 text-rose-700'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
             >
-              <span>Test Client Mobile View</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
+              <Mail className={`w-4 h-4 ${activeTab === 'email' ? 'text-rose-600' : ''}`} />
+              <span>Ready-to-Send Email</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('whatsapp')}
+              className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
+                activeTab === 'whatsapp'
+                  ? 'border-[#25D366] text-emerald-800'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <svg className="w-4 h-4 fill-emerald-600" viewBox="0 0 24 24">
+                <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+              </svg>
+              <span>WhatsApp Message</span>
+            </button>
           </div>
-        </div>
-
-        {/* Tabs (3 Clean Tabs: Details, Email, WhatsApp) */}
-        <div className="flex border-b border-slate-200 px-6 bg-white gap-6 text-sm font-bold">
-          <button
-            onClick={() => setActiveTab('invoice')}
-            className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
-              activeTab === 'invoice'
-                ? 'border-[#003087] text-[#003087]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>Invoice Details</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('email')}
-            className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
-              activeTab === 'email'
-                ? 'border-[#003087] text-[#003087]'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Mail className="w-4 h-4" />
-            <span>Ready-to-Send Email</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('whatsapp')}
-            className={`py-3.5 border-b-2 flex items-center gap-2 transition cursor-pointer ${
-              activeTab === 'whatsapp'
-                ? 'border-[#25D366] text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <svg className="w-4 h-4 fill-emerald-600" viewBox="0 0 24 24">
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-            </svg>
-            <span>WhatsApp Message</span>
-          </button>
-        </div>
+        )}
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {activeTab === 'invoice' && (
+          {activeTab === 'invoice' && (() => {
+            const displayInvoice = proposedInvoice || invoice;
+            return (
             <div className="space-y-4">
               <div className="flex justify-end items-center gap-2">
                 <button
@@ -629,16 +815,23 @@ export default function InvoiceModal({
               </div>
 
               {/* Rendered Invoice Paper Container */}
-              <div id="modal-invoice-paper" className="p-6 bg-slate-50 rounded-2xl border border-slate-200 space-y-6">
+              <div id="modal-invoice-paper" className={`p-6 bg-slate-50 rounded-2xl border transition space-y-6 ${proposedInvoice ? 'border-amber-300 ring-2 ring-amber-200/60' : 'border-slate-200'}`}>
                 <div className="flex justify-between items-start border-b border-slate-200 pb-4">
                   <div>
-                    <h3 className="text-2xl font-black text-[#001435]">Invoice</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Date: {invoice.date} | Due: {invoice.dueDate}</p>
+                    <h3 className="text-2xl font-black text-[#001435] flex items-center gap-2">
+                      <span>Invoice</span>
+                      {proposedInvoice && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 font-bold uppercase tracking-wider">
+                          Staged Preview
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Date: {displayInvoice.date} | Due: {displayInvoice.dueDate}</p>
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Due</span>
                     <span className="text-2xl font-black text-[#003087]">
-                      ${invoice.totalAmount.toFixed(2)} {invoice.currency}
+                      ${displayInvoice.totalAmount.toFixed(2)} {displayInvoice.currency}
                     </span>
                   </div>
                 </div>
@@ -646,16 +839,16 @@ export default function InvoiceModal({
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div className="p-3 bg-white rounded-xl border border-slate-200">
                     <span className="text-slate-400 font-bold block uppercase text-[10px]">Billed From</span>
-                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{invoice.sellerName}</span>
-                    <span className="text-slate-500">{invoice.sellerEmail || 'billing@merchant.com'}</span>
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{displayInvoice.sellerName}</span>
+                    <span className="text-slate-500">{displayInvoice.sellerEmail || 'billing@merchant.com'}</span>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-slate-200">
                     <span className="text-slate-400 font-bold block uppercase text-[10px]">Billed To</span>
-                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{invoice.clientName}</span>
-                    <span className="text-slate-500 block">{invoice.clientEmail}</span>
-                    {invoice.clientPhone && (
+                    <span className="font-bold text-slate-900 text-sm block mt-0.5">{displayInvoice.clientName}</span>
+                    <span className="text-slate-500 block">{displayInvoice.clientEmail}</span>
+                    {displayInvoice.clientPhone && (
                       <span className="text-slate-500 block text-[11px] font-medium text-emerald-700 mt-0.5">
-                        WhatsApp: {invoice.clientPhone}
+                        WhatsApp: {displayInvoice.clientPhone}
                       </span>
                     )}
                   </div>
@@ -673,7 +866,7 @@ export default function InvoiceModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {invoice.items.map((it, idx) => (
+                      {displayInvoice.items.map((it, idx) => (
                         <tr key={idx}>
                           <td className="p-3 font-semibold text-slate-800">{it.description}</td>
                           <td className="p-3 text-center text-slate-600">{it.quantity}</td>
@@ -686,36 +879,36 @@ export default function InvoiceModal({
                   <div className="p-3 bg-slate-50/50 border-t border-slate-200 flex flex-col items-end space-y-1 text-xs">
                     <div className="flex justify-between w-48 text-slate-500">
                       <span>Subtotal:</span>
-                      <span>${invoice.subtotal.toFixed(2)}</span>
+                      <span>${displayInvoice.subtotal.toFixed(2)}</span>
                     </div>
-                    {invoice.discountAmount > 0 && (
+                    {displayInvoice.discountAmount > 0 && (
                       <div className="flex justify-between w-48 text-emerald-600">
-                        <span>Discount ({invoice.discountPercentage}%):</span>
-                        <span>-${invoice.discountAmount.toFixed(2)}</span>
+                        <span>Discount ({displayInvoice.discountPercentage}%):</span>
+                        <span>-${displayInvoice.discountAmount.toFixed(2)}</span>
                       </div>
                     )}
-                    {invoice.taxAmount > 0 && (
+                    {displayInvoice.taxAmount > 0 && (
                       <div className="flex justify-between w-48 text-slate-500">
-                        <span>Tax ({invoice.taxPercentage}%):</span>
-                        <span>+${invoice.taxAmount.toFixed(2)}</span>
+                        <span>Tax ({displayInvoice.taxPercentage}%):</span>
+                        <span>+${displayInvoice.taxAmount.toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between w-48 pt-1 border-t border-slate-200 font-black text-sm text-[#003087]">
                       <span>Total:</span>
-                      <span>${invoice.totalAmount.toFixed(2)}</span>
+                      <span>${displayInvoice.totalAmount.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
 
-                {invoice.notes && (
+                {displayInvoice.notes && (
                   <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs text-slate-600">
                     <span className="font-bold text-slate-800 block mb-0.5">Notes & Terms:</span>
-                    {invoice.notes}
+                    {displayInvoice.notes}
                   </div>
                 )}
               </div>
             </div>
-          )}
+          );})()}
 
           {activeTab === 'email' && (
             <div className="space-y-4">
@@ -800,23 +993,30 @@ export default function InvoiceModal({
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    Subject Line
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+                    <span>Subject Line</span>
+                    {proposedEmailDraft && (
+                      <span className="text-[10px] text-amber-700 bg-amber-100 font-bold px-2 py-0.5 rounded-full">
+                        AI Draft Staged
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"
-                    disabled={!isEditingEmailManual}
-                    value={emailSubject}
+                    disabled={!isEditingEmailManual && !proposedEmailDraft}
+                    value={proposedEmailDraft ? proposedEmailDraft.subject : emailSubject}
                     onChange={(e) => {
-                      setEmailSubject(e.target.value);
-                      onUpdate({
-                        ...invoice,
-                        emailDraft: { subject: e.target.value, body: emailBody },
-                      });
+                      if (proposedEmailDraft) {
+                        setProposedEmailDraft({ ...proposedEmailDraft, subject: e.target.value });
+                      } else {
+                        setEmailSubject(e.target.value);
+                      }
                     }}
                     placeholder="Subject line..."
                     className={`w-full border rounded-xl p-3 text-sm font-bold text-slate-900 transition ${
-                      isEditingEmailManual
+                      proposedEmailDraft
+                        ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-200'
+                        : isEditingEmailManual
                         ? 'bg-white border-[#0070ba] ring-2 ring-blue-100'
                         : 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-90'
                     }`}
@@ -824,23 +1024,30 @@ export default function InvoiceModal({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                    Email Body Message
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+                    <span>Email Body Message</span>
+                    {proposedEmailDraft && (
+                      <span className="text-[10px] text-amber-700 bg-amber-100 font-bold px-2 py-0.5 rounded-full">
+                        Click Confirm above to apply
+                      </span>
+                    )}
                   </label>
                   <textarea
                     rows={8}
-                    disabled={!isEditingEmailManual}
-                    value={emailBody}
+                    disabled={!isEditingEmailManual && !proposedEmailDraft}
+                    value={proposedEmailDraft ? proposedEmailDraft.body : emailBody}
                     onChange={(e) => {
-                      setEmailBody(e.target.value);
-                      onUpdate({
-                        ...invoice,
-                        emailDraft: { subject: emailSubject, body: e.target.value },
-                      });
+                      if (proposedEmailDraft) {
+                        setProposedEmailDraft({ ...proposedEmailDraft, body: e.target.value });
+                      } else {
+                        setEmailBody(e.target.value);
+                      }
                     }}
                     placeholder="Email body text..."
                     className={`w-full border rounded-xl p-3.5 text-sm text-slate-800 leading-relaxed resize-none font-normal transition ${
-                      isEditingEmailManual
+                      proposedEmailDraft
+                        ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-200'
+                        : isEditingEmailManual
                         ? 'bg-white border-[#0070ba] ring-2 ring-blue-100'
                         : 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-90'
                     }`}
@@ -948,17 +1155,30 @@ export default function InvoiceModal({
 
               {/* WhatsApp Message Body */}
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                  WhatsApp Message Draft {invoice.clientPhone && `(Target: ${invoice.clientPhone})`}
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+                  <span>WhatsApp Message Draft {invoice.clientPhone && `(Target: ${invoice.clientPhone})`}</span>
+                  {proposedWhatsAppText && (
+                    <span className="text-[10px] text-amber-700 bg-amber-100 font-bold px-2 py-0.5 rounded-full">
+                      AI Staged — Click Confirm above to apply
+                    </span>
+                  )}
                 </label>
                 <textarea
                   rows={8}
-                  disabled={!isEditingWhatsAppManual}
-                  value={whatsAppText}
-                  onChange={(e) => setWhatsAppText(e.target.value)}
+                  disabled={!isEditingWhatsAppManual && !proposedWhatsAppText}
+                  value={proposedWhatsAppText !== null ? proposedWhatsAppText : whatsAppText}
+                  onChange={(e) => {
+                    if (proposedWhatsAppText !== null) {
+                      setProposedWhatsAppText(e.target.value);
+                    } else {
+                      setWhatsAppText(e.target.value);
+                    }
+                  }}
                   placeholder="WhatsApp message text..."
                   className={`w-full border rounded-xl p-3.5 text-sm text-slate-800 leading-relaxed resize-none font-normal transition ${
-                    isEditingWhatsAppManual
+                    proposedWhatsAppText !== null
+                      ? 'bg-amber-50/50 border-amber-300 ring-2 ring-amber-200'
+                      : isEditingWhatsAppManual
                       ? 'bg-white border-[#25D366] ring-2 ring-emerald-100'
                       : 'bg-slate-50 border-slate-200 cursor-not-allowed opacity-90'
                   }`}
