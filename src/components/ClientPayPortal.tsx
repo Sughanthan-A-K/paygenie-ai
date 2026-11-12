@@ -149,11 +149,27 @@ export default function ClientPayPortal() {
 
       pdf.setFont('helvetica', 'bold');
       if (invoice.status === 'PAID') {
-        pdf.setTextColor(16, 185, 129);
-        pdf.text('STATUS: PAID VIA PAYPAL', pageWidth - 70, 32);
+        // Vibrant Green PAID Stamp Box
+        pdf.setDrawColor(16, 185, 129);
+        pdf.setFillColor(236, 253, 245);
+        pdf.roundedRect(pageWidth - 85, 24, 70, 14, 2, 2, 'FD');
+        pdf.setTextColor(5, 150, 105);
+        pdf.setFontSize(10.5);
+        pdf.text('STATUS: PAID VIA PAYPAL', pageWidth - 50, 31, { align: 'center' });
+        if (invoice.paymentId) {
+          pdf.setFontSize(7.5);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(16, 185, 129);
+          pdf.text(`TX: ${invoice.paymentId.slice(0, 18)}`, pageWidth - 50, 35.5, { align: 'center' });
+        }
       } else {
-        pdf.setTextColor(217, 119, 6);
-        pdf.text('STATUS: AWAITING PAYMENT', pageWidth - 70, 32);
+        // Amber UNPAID Stamp Box
+        pdf.setDrawColor(245, 158, 11);
+        pdf.setFillColor(254, 243, 199);
+        pdf.roundedRect(pageWidth - 85, 24, 70, 12, 2, 2, 'FD');
+        pdf.setTextColor(180, 83, 9);
+        pdf.setFontSize(10.5);
+        pdf.text('STATUS: AWAITING PAYMENT', pageWidth - 50, 31.5, { align: 'center' });
       }
 
       // Counterparty boxes
@@ -181,16 +197,19 @@ export default function ClientPayPortal() {
 
       // Line items table
       let y = 82;
+      const rightMargin = 20;
+      const totalColX = pageWidth - rightMargin;
+
       pdf.setFillColor(241, 245, 249);
       pdf.rect(15, y, pageWidth - 30, 8, 'F');
       
-      pdf.setFontSize(8);
+      pdf.setFontSize(8.5);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(71, 85, 105);
       pdf.text('DESCRIPTION', 18, y + 5.5);
-      pdf.text('QTY', pageWidth - 75, y + 5.5, { align: 'center' });
-      pdf.text('RATE', pageWidth - 45, y + 5.5, { align: 'right' });
-      pdf.text('TOTAL', pageWidth - 20, y + 5.5, { align: 'right' });
+      pdf.text('QTY', totalColX - 60, y + 5.5, { align: 'right' });
+      pdf.text('RATE', totalColX - 32, y + 5.5, { align: 'right' });
+      pdf.text('TOTAL', totalColX, y + 5.5, { align: 'right' });
 
       y += 8;
       pdf.setFont('helvetica', 'normal');
@@ -199,10 +218,10 @@ export default function ClientPayPortal() {
 
       invoice.items.forEach((item) => {
         pdf.text(item.description, 18, y + 6);
-        pdf.text(item.quantity.toString(), pageWidth - 75, y + 6, { align: 'center' });
-        pdf.text(`$${(item.unitPrice || 0).toFixed(2)}`, pageWidth - 45, y + 6, { align: 'right' });
+        pdf.text(String(item.quantity), totalColX - 60, y + 6, { align: 'right' });
+        pdf.text(`$${(item.unitPrice || 0).toFixed(2)}`, totalColX - 32, y + 6, { align: 'right' });
         pdf.setFont('helvetica', 'bold');
-        pdf.text(`$${(item.total || 0).toFixed(2)}`, pageWidth - 20, y + 6, { align: 'right' });
+        pdf.text(`$${(item.total || 0).toFixed(2)}`, totalColX, y + 6, { align: 'right' });
         pdf.setFont('helvetica', 'normal');
         
         pdf.setDrawColor(241, 245, 249);
@@ -210,33 +229,44 @@ export default function ClientPayPortal() {
         y += 8;
       });
 
-      // Totals
-      y += 6;
-      pdf.setFontSize(9);
+      // Divider line after items
+      y += 10;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(15, y, pageWidth - 15, y);
+
+      // Totals section with generous breathing room
+      y += 10;
+      pdf.setFontSize(9.5);
       pdf.setTextColor(100, 116, 139);
-      pdf.text('Subtotal:', pageWidth - 60, y);
-      pdf.text(`$${invoice.subtotal.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+      pdf.text('Subtotal:', totalColX - 52, y, { align: 'right' });
+      pdf.text(`$${invoice.subtotal.toFixed(2)}`, totalColX, y, { align: 'right' });
 
       if (invoice.discountAmount > 0) {
-        y += 6;
+        y += 8;
         pdf.setTextColor(16, 185, 129);
-        pdf.text(`Discount (${invoice.discountPercentage}%):`, pageWidth - 60, y);
-        pdf.text(`-$${invoice.discountAmount.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+        pdf.text(`Discount (${invoice.discountPercentage}%):`, totalColX - 52, y, { align: 'right' });
+        pdf.text(`-$${invoice.discountAmount.toFixed(2)}`, totalColX, y, { align: 'right' });
       }
 
       if (invoice.taxAmount > 0) {
-        y += 6;
+        y += 8;
         pdf.setTextColor(100, 116, 139);
-        pdf.text(`Tax (${invoice.taxPercentage}%):`, pageWidth - 60, y);
-        pdf.text(`+$${invoice.taxAmount.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+        pdf.text(`Tax (${invoice.taxPercentage}%):`, totalColX - 52, y, { align: 'right' });
+        pdf.text(`+$${invoice.taxAmount.toFixed(2)}`, totalColX, y, { align: 'right' });
       }
 
-      y += 8;
-      pdf.setFontSize(13);
+      // Separator line with proper clearance
+      y += 6;
+      pdf.setDrawColor(226, 232, 240);
+      pdf.line(totalColX - 85, y, totalColX, y);
+
+      // Clean gap below the separator line before the bold Total text
+      y += 9;
+      pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 48, 135);
-      pdf.text('Total Amount Due:', pageWidth - 80, y);
-      pdf.text(`$${invoice.totalAmount.toFixed(2)} ${invoice.currency}`, pageWidth - 20, y, { align: 'right' });
+      pdf.text('Total Amount Due:', totalColX - 52, y, { align: 'right' });
+      pdf.text(`$${invoice.totalAmount.toFixed(2)} ${invoice.currency}`, totalColX, y, { align: 'right' });
 
       pdf.save(`Invoice_${invoice.invoiceNumber}.pdf`);
       toast.success('Invoice PDF downloaded!');
@@ -318,75 +348,172 @@ export default function ClientPayPortal() {
   if (!invoice) return null;
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] text-[#001435] flex flex-col items-center justify-center p-4 sm:p-8 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0] text-[#001435] flex items-center justify-center p-0 sm:p-6 md:p-8 font-sans overflow-x-hidden relative selection:bg-[#0070ba]/20">
       
-      {/* Top Security Verification Bar (Pure Client Facing - No Merchant Links) */}
-      <div className="w-full max-w-[400px] mx-auto mb-4 flex items-center justify-between text-xs px-2">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-slate-600 font-bold text-xs">Official Merchant Checkout</span>
-        </div>
-        <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-300 text-xs shadow-2xs">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>PayPal Verified 256-Bit</span>
-        </span>
+      {/* Ambient Radial Soft Glow on Desktop */}
+      <div className="hidden sm:block absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(#0070ba0a_1px,transparent_1px)] bg-[size:24px_24px]" />
       </div>
 
-      {/* Realistic Smartphone Chassis Frame (Polished Pearl & Titanium Border) */}
-      <div className="relative mx-auto w-full max-w-[400px] rounded-[52px] bg-slate-900 p-3.5 shadow-2xl ring-1 ring-slate-300">
+      {/* Two-Column Showcase on Desktop / Full-Width on Mobile */}
+      <div className="w-full max-w-5xl mx-auto flex flex-col lg:flex-row items-center justify-center lg:justify-between gap-8 lg:gap-12 relative z-10">
         
-        {/* Device Outer Edge Physical Buttons */}
-        <div className="absolute -left-1 top-24 h-12 w-1 rounded-l bg-slate-500" />
-        <div className="absolute -left-1 top-40 h-12 w-1 rounded-l bg-slate-500" />
-        <div className="absolute -right-1 top-32 h-16 w-1 rounded-r bg-slate-500" />
+        {/* Left Side: Brand Value & Direct Live Security Details (Desktop only) */}
+        <div className="hidden lg:flex flex-col max-w-md space-y-6">
+          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/80 border border-slate-200/80 backdrop-blur-md shadow-sm text-xs font-semibold text-blue-700 w-fit">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Official PayPal Verified 256-Bit Gateway</span>
+          </div>
 
-        {/* Inner Phone Screen Container */}
-        <div 
-          id="phone-screen-container" 
-          className="relative overflow-hidden rounded-[40px] bg-white border border-slate-200 h-[740px] flex flex-col text-[#001435]"
-        >
-          
-          {/* iOS / Smartphone Status Bar */}
-          <div className="h-11 bg-white flex items-center justify-between px-6 pt-2 shrink-0 z-20">
-            <span className="font-semibold text-xs tracking-tight text-[#001435]">9:41</span>
-            
-            {/* Dynamic Island Notch */}
-            <div className="w-24 h-5 rounded-full bg-black flex items-center justify-end pr-2 gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#10b981]" />
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-900 ring-1 ring-slate-800" />
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <PayGenieLogo size={42} showText={false} />
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">
+                PayGenie <span className="text-[#0070ba]">AI</span>
+              </h1>
             </div>
+            <p className="text-slate-600 text-sm leading-relaxed">
+              Instant, verified natural language billing settlement. You can securely review line items, download your official invoice PDF, and settle in one tap via PayPal.
+            </p>
+          </div>
 
-            <div className="flex items-center gap-1.5 text-[#001435]">
-              <Wifi className="w-3.5 h-3.5" />
-              <Battery className="w-4 h-4" />
+          {/* Value Badges */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Settlement</span>
+              <p className="text-sm font-bold text-slate-900">Instant Capture</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Direct PayPal Orders v2</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Protection</span>
+              <p className="text-sm font-bold text-emerald-600">Buyer Protection</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Encrypted zero-card access</p>
             </div>
           </div>
 
-          {/* Browser Address Bar with Official PayGenie Logo */}
-          <div className="px-4 py-2 bg-[#f5f7fa] border-b border-slate-200 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <PayGenieLogo size={28} showText={false} />
-              <div className="leading-tight">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-xs tracking-tight text-[#001435]">
-                    PayGenie <span className="text-[#0070ba]">AI</span>
-                  </span>
-                  <span className="text-[9px] font-semibold text-slate-400">· PayPal</span>
+          {/* Counterparty Summary Pill */}
+          <div className="p-4 rounded-2xl bg-white border border-blue-100 shadow-sm flex items-center justify-between text-xs">
+            <div>
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Billed By</span>
+              <span className="font-bold text-slate-900 text-sm mt-0.5 block">{invoice.sellerName || 'Merchant'}</span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Invoice</span>
+              <span className="font-mono font-bold text-[#0070ba] text-sm mt-0.5 block">{invoice.invoiceNumber}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side: Smartphone Device Mockup on Desktop / Full Screen on Mobile */}
+        <div className="w-full sm:max-w-[400px]">
+          <div className="relative mx-auto w-full sm:max-w-[400px] rounded-none sm:rounded-[52px] bg-white sm:bg-slate-800 p-0 sm:p-3.5 shadow-none sm:shadow-[0_20px_50px_rgba(0,0,0,0.15)] sm:ring-1 sm:ring-slate-300">
+            
+            {/* Device Outer Edge Physical Buttons */}
+            <div className="hidden sm:block absolute -left-1 top-24 h-12 w-1 rounded-l bg-slate-600" />
+            <div className="hidden sm:block absolute -left-1 top-40 h-12 w-1 rounded-l bg-slate-600" />
+            <div className="hidden sm:block absolute -right-1 top-32 h-16 w-1 rounded-r bg-slate-600" />
+
+            {/* Inner Phone Screen Container */}
+            <div 
+              id="phone-screen-container" 
+              className="relative overflow-hidden rounded-none sm:rounded-[40px] bg-white border-0 sm:border border-slate-200 min-h-screen sm:min-h-0 sm:h-[740px] flex flex-col text-[#001435]"
+            >
+              
+              {/* iOS Status Bar (Desktop frame only) */}
+              <div className="hidden sm:flex h-11 bg-white items-center justify-between px-6 pt-2 shrink-0 z-20">
+                <span className="font-semibold text-xs tracking-tight text-[#001435]">9:41</span>
+                
+                {/* Dynamic Island Notch */}
+                <div className="w-24 h-5 rounded-full bg-black flex items-center justify-end pr-2 gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#10b981]" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-900 ring-1 ring-slate-800" />
                 </div>
-                <span className="text-[10px] text-slate-500 font-medium truncate max-w-[170px] block">
-                  paygenie.ai/?invoice={invoice.invoiceNumber}
+
+                <div className="flex items-center gap-1.5 text-[#001435]">
+                  <Wifi className="w-3.5 h-3.5" />
+                  <Battery className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Browser Address Bar with Official PayGenie Logo */}
+              <div className="px-4 py-2.5 bg-[#f5f7fa] border-b border-slate-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {/* Inline Official PayGenie Squircle Emblem */}
+                  <svg
+                    width="32"
+                    height="32"
+                    viewBox="0 0 512 512"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="shrink-0 drop-shadow-sm select-none"
+                    style={{ minWidth: '32px', minHeight: '32px' }}
+                  >
+                    <defs>
+                      <linearGradient id="pgPortalBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#001C64" />
+                        <stop offset="50%" stopColor="#003087" />
+                        <stop offset="100%" stopColor="#0070BA" />
+                      </linearGradient>
+                      <linearGradient id="pgPortalP1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#0079C1" />
+                        <stop offset="100%" stopColor="#00457C" />
+                      </linearGradient>
+                      <linearGradient id="pgPortalP2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#00457C" />
+                        <stop offset="100%" stopColor="#002447" />
+                      </linearGradient>
+                      <linearGradient id="pgPortalGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFE885" />
+                        <stop offset="40%" stopColor="#FFC439" />
+                        <stop offset="100%" stopColor="#FF9E1B" />
+                      </linearGradient>
+                      <linearGradient id="pgPortalCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFFFFF" />
+                        <stop offset="60%" stopColor="#38BDF8" />
+                        <stop offset="100%" stopColor="#0284C7" />
+                      </linearGradient>
+                    </defs>
+                    <rect width="512" height="512" rx="128" fill="url(#pgPortalBg)" />
+                    <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="8" />
+                    <g transform="translate(68, 70)">
+                      <path d="M 96 48 L 220 48 C 290 48 338 88 322 158 C 308 220 252 258 184 258 L 132 258 L 94 416 L 36 416 L 96 48 Z" fill="url(#pgPortalP2)" opacity="0.9" />
+                      <path d="M 148 102 L 268 102 C 336 102 376 138 360 206 C 344 274 290 310 220 310 L 176 310 L 152 416 L 96 416 L 148 102 Z" fill="url(#pgPortalP1)" />
+                      <path d="M 176 310 L 220 310 C 274 310 316 284 334 238 C 314 252 284 258 244 258 L 188 258 L 176 310 Z" fill="#002447" opacity="0.45" />
+                    </g>
+                    <g transform="translate(366, 78)">
+                      <path d="M 38 0 Q 38 38 76 38 Q 38 38 38 76 Q 38 38 0 38 Q 38 38 38 0 Z" fill="url(#pgPortalGold)" />
+                    </g>
+                    <g transform="translate(398, 250)">
+                      <path d="M 22 0 Q 22 22 44 22 Q 22 22 22 44 Q 22 22 0 22 Q 22 22 22 0 Z" fill="url(#pgPortalCyan)" />
+                    </g>
+                    <g transform="translate(90, 72)">
+                      <path d="M 14 0 Q 14 14 28 14 Q 14 14 14 28 Q 14 14 0 14 Q 14 14 14 0 Z" fill="#FFFFFF" opacity="0.95" />
+                    </g>
+                  </svg>
+
+                  <div className="leading-tight min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-xs tracking-tight text-[#001435] shrink-0">
+                        PayGenie <span className="text-[#0070ba]">AI</span>
+                      </span>
+                      <span className="text-[9px] font-semibold text-slate-400 shrink-0">· PayPal</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium truncate max-w-[170px] block">
+                      paygenie.ai/?invoice={invoice.invoiceNumber}
+                    </span>
+                  </div>
+                </div>
+
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                  <span>256-Bit</span>
                 </span>
               </div>
-            </div>
 
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-              <ShieldCheck className="w-3 h-3 text-emerald-600" />
-              <span>Encrypted</span>
-            </span>
-          </div>
-
-          {/* Scrollable Mobile Bill Body */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs no-scrollbar">
+              {/* Scrollable Mobile Bill Body */}
+              <div className="flex-1 sm:overflow-y-auto p-4 space-y-3.5 text-xs no-scrollbar">
             
             {/* Amount Due Banner */}
             <div className="bg-gradient-to-br from-[#003087] to-[#001c64] text-white p-4 rounded-2xl shadow-sm">
@@ -509,9 +636,60 @@ export default function ClientPayPortal() {
                 <button
                   type="button"
                   onClick={() => setShowPayPalCheckout(true)}
-                  className="w-full h-11 rounded-full bg-[#0070ba] hover:bg-[#003087] text-white font-bold text-sm transition shadow-sm hover:shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  className="w-full h-11 rounded-full bg-[#0070ba] hover:bg-[#003087] text-white font-bold text-sm transition shadow-sm hover:shadow-md flex items-center justify-center gap-2.5 cursor-pointer active:scale-[0.99]"
                 >
-                  <PayGenieLogo size={20} showText={false} />
+                  {/* Official Full PayGenie Emblem (Squircle Badge with Double-P & Sparkle - matching top logo) */}
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 512 512"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="shrink-0 select-none drop-shadow-sm"
+                    style={{ minWidth: '22px', minHeight: '22px' }}
+                  >
+                    <defs>
+                      <linearGradient id="btnPgBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#001C64" />
+                        <stop offset="50%" stopColor="#003087" />
+                        <stop offset="100%" stopColor="#0070BA" />
+                      </linearGradient>
+                      <linearGradient id="btnPgP1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#0079C1" />
+                        <stop offset="100%" stopColor="#00457C" />
+                      </linearGradient>
+                      <linearGradient id="btnPgP2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#00457C" />
+                        <stop offset="100%" stopColor="#002447" />
+                      </linearGradient>
+                      <linearGradient id="btnPgGold" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFE885" />
+                        <stop offset="40%" stopColor="#FFC439" />
+                        <stop offset="100%" stopColor="#FF9E1B" />
+                      </linearGradient>
+                      <linearGradient id="btnPgCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#FFFFFF" />
+                        <stop offset="60%" stopColor="#38BDF8" />
+                        <stop offset="100%" stopColor="#0284C7" />
+                      </linearGradient>
+                    </defs>
+                    <rect width="512" height="512" rx="128" fill="url(#btnPgBg)" />
+                    <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth="8" />
+                    <g transform="translate(68, 70)">
+                      <path d="M 96 48 L 220 48 C 290 48 338 88 322 158 C 308 220 252 258 184 258 L 132 258 L 94 416 L 36 416 L 96 48 Z" fill="url(#btnPgP2)" opacity="0.9" />
+                      <path d="M 148 102 L 268 102 C 336 102 376 138 360 206 C 344 274 290 310 220 310 L 176 310 L 152 416 L 96 416 L 148 102 Z" fill="url(#btnPgP1)" />
+                      <path d="M 176 310 L 220 310 C 274 310 316 284 334 238 C 314 252 284 258 244 258 L 188 258 L 176 310 Z" fill="#002447" opacity="0.45" />
+                    </g>
+                    <g transform="translate(366, 78)">
+                      <path d="M 38 0 Q 38 38 76 38 Q 38 38 38 76 Q 38 38 0 38 Q 38 38 38 0 Z" fill="url(#btnPgGold)" />
+                    </g>
+                    <g transform="translate(398, 250)">
+                      <path d="M 22 0 Q 22 22 44 22 Q 22 22 22 44 Q 22 22 0 22 Q 22 22 22 0 Z" fill="url(#btnPgCyan)" />
+                    </g>
+                    <g transform="translate(90, 72)">
+                      <path d="M 14 0 Q 14 14 28 14 Q 14 14 14 28 Q 14 14 0 14 Q 14 14 14 0 Z" fill="#FFFFFF" opacity="0.95" />
+                    </g>
+                  </svg>
                   <span>Pay Now — ${invoice.totalAmount.toFixed(2)}</span>
                 </button>
               ) : (
@@ -533,8 +711,9 @@ export default function ClientPayPortal() {
 
         </div>
       </div>
-
     </div>
+  </div>
+</div>
   );
 }
 

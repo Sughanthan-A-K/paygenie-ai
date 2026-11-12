@@ -348,6 +348,48 @@ function MerchantWorkspace() {
     };
   }, []);
 
+  // Global ESC key listener to close modals & popups in workspace
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (confirmDialog.isOpen) {
+          setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+          return;
+        }
+        if (isNewClientModalOpen) {
+          setIsNewClientModalOpen(false);
+          return;
+        }
+        if (isClientInvoicesDropdownOpen) {
+          setIsClientInvoicesDropdownOpen(false);
+          return;
+        }
+        if (isProfileModalOpen) {
+          setIsProfileModalOpen(false);
+          return;
+        }
+        if (isTemplateManagerOpen) {
+          setIsTemplateManagerOpen(false);
+          return;
+        }
+        if (isModalOpen) {
+          setIsModalOpen(false);
+          setIsModalPreviewOnly(false);
+          return;
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    confirmDialog.isOpen,
+    isNewClientModalOpen,
+    isClientInvoicesDropdownOpen,
+    isProfileModalOpen,
+    isTemplateManagerOpen,
+    isModalOpen,
+  ]);
+
   // Persist selected client to localStorage whenever user switches clients
   const handleSelectClient = (clientId: string) => {
     setSelectedClientId(clientId);

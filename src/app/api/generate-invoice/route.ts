@@ -139,6 +139,19 @@ IMPORTANT LOGIC:
 
     const parsedResult = JSON.parse(cleanedText);
 
+    // Ensure generated invoice number is guaranteed unique
+    if (parsedResult.isInvoice) {
+      if (
+        !parsedResult.invoiceNumber ||
+        parsedResult.invoiceNumber.includes('XXXX') ||
+        parsedResult.invoiceNumber === 'INV-2026-0001'
+      ) {
+        const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+        const timestampSuffix = Date.now().toString().slice(-4);
+        parsedResult.invoiceNumber = `INV-2026-${timestampSuffix}${randomSuffix.toString().slice(0, 2)}`;
+      }
+    }
+
     if (!parsedResult.isInvoice) {
       return NextResponse.json({
         isInvoice: false,

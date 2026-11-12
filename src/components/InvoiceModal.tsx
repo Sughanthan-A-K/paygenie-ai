@@ -101,6 +101,18 @@ export default function InvoiceModal({
     setProposedWhatsAppText(null);
   }, [isOpen, invoice.invoiceNumber, initialTab]);
 
+  // Global ESC key listener to close modal
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const clientPayUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/?invoice=${invoice.invoiceNumber}`;
@@ -163,11 +175,27 @@ export default function InvoiceModal({
 
     pdf.setFont('helvetica', 'bold');
     if (invoice.status === 'PAID') {
-      pdf.setTextColor(16, 185, 129);
-      pdf.text('STATUS: PAID VIA PAYPAL', pageWidth - 70, 32);
+      // Vibrant Green PAID Stamp Box
+      pdf.setDrawColor(16, 185, 129);
+      pdf.setFillColor(236, 253, 245);
+      pdf.roundedRect(pageWidth - 85, 24, 70, 14, 2, 2, 'FD');
+      pdf.setTextColor(5, 150, 105);
+      pdf.setFontSize(10.5);
+      pdf.text('STATUS: PAID VIA PAYPAL', pageWidth - 50, 31, { align: 'center' });
+      if (invoice.paymentId) {
+        pdf.setFontSize(7.5);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(16, 185, 129);
+        pdf.text(`TX: ${invoice.paymentId.slice(0, 18)}`, pageWidth - 50, 35.5, { align: 'center' });
+      }
     } else {
-      pdf.setTextColor(217, 119, 6);
-      pdf.text('STATUS: AWAITING PAYMENT', pageWidth - 70, 32);
+      // Amber UNPAID Stamp Box
+      pdf.setDrawColor(245, 158, 11);
+      pdf.setFillColor(254, 243, 199);
+      pdf.roundedRect(pageWidth - 85, 24, 70, 12, 2, 2, 'FD');
+      pdf.setTextColor(180, 83, 9);
+      pdf.setFontSize(10.5);
+      pdf.text('STATUS: AWAITING PAYMENT', pageWidth - 50, 31.5, { align: 'center' });
     }
 
     // Counterparty boxes

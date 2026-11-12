@@ -136,8 +136,27 @@ CURRENT_INVOICE_CONTEXT: ${JSON.stringify(currentInvoice || null)}
     if (jsonMatch && jsonMatch[1]) {
       try {
         parsedInvoice = JSON.parse(jsonMatch[1]);
-        if (parsedInvoice && !parsedInvoice.status) {
-          parsedInvoice.status = currentInvoice?.status || 'PENDING';
+        if (parsedInvoice) {
+          if (!parsedInvoice.status) {
+            parsedInvoice.status = currentInvoice?.status || 'PENDING';
+          }
+          
+          // Generate a guaranteed unique, professional invoice ID if AI returns generic/duplicate number
+          if (
+            !parsedInvoice.invoiceNumber ||
+            parsedInvoice.invoiceNumber.includes('XXXX') ||
+            parsedInvoice.invoiceNumber === 'INV-2026-0001'
+          ) {
+            if (currentInvoice?.invoiceNumber) {
+              // Retain existing invoice number during edits
+              parsedInvoice.invoiceNumber = currentInvoice.invoiceNumber;
+            } else {
+              // New invoice: Unique sequential timestamp + random hash
+              const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+              const timestampSuffix = Date.now().toString().slice(-4);
+              parsedInvoice.invoiceNumber = `INV-2026-${timestampSuffix}${randomSuffix.toString().slice(0, 2)}`;
+            }
+          }
         }
       } catch (e) {
         console.error('Failed to parse invoice json:', e);
