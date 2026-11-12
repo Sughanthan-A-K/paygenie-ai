@@ -69,7 +69,20 @@ const DEFAULT_MERCHANT: MerchantProfile = {
   geminiApiKey: '',
 };
 
-const DEFAULT_CLIENTS: ClientProfile[] = [];
+const DEFAULT_CLIENTS: ClientProfile[] = [
+  {
+    id: 'client-acme-sample',
+    name: 'Acme Innovations',
+    email: 'billing@acme.io',
+    phone: '+1 (555) 234-5678',
+    company: 'Acme Corp',
+    preferredLanguage: 'English',
+    avatarBg: 'bg-[#003087]',
+    createdAt: '2026-11-12',
+    messages: [],
+    invoices: [],
+  },
+];
 
 function MainAppContent() {
   const searchParams = useSearchParams();
@@ -222,19 +235,27 @@ function MerchantWorkspace() {
           }
         }
 
-        // 2. Fallback to localStorage if offline
+        // 2. Fallback to localStorage or DEFAULT_CLIENTS if offline
         const storageKey = 'paygenie_clients_v4';
         const storedClients = localStorage.getItem(storageKey);
         if (storedClients) {
           const parsed = JSON.parse(storedClients);
-          if (Array.isArray(parsed)) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             setClients(parsed);
             if (savedActiveClientId && parsed.some((c: any) => c.id === savedActiveClientId)) {
               setSelectedClientId(savedActiveClientId);
             } else if (parsed.length > 0) {
               setSelectedClientId(parsed[0].id);
             }
+            setIsStorageLoaded(true);
+            return;
           }
+        }
+
+        // 3. Fallback to default single sample client
+        setClients(DEFAULT_CLIENTS);
+        if (DEFAULT_CLIENTS.length > 0) {
+          setSelectedClientId(DEFAULT_CLIENTS[0].id);
         }
       } catch (e) {
         console.error('Load data error:', e);
