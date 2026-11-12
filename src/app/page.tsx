@@ -28,41 +28,34 @@ import {
   RotateCcw,
   Layers,
   FileCode,
+  FileText,
   Mail
 } from 'lucide-react';
 
 const BILLING_TEMPLATES = [
   {
-    category: 'Invoice Template',
-    label: 'Hourly Development',
+    label: 'Hourly Engineering',
     prompt: 'Billed 12 hours of full-stack engineering & PayPal integration at $65/hr with a 5% early payment discount.',
   },
   {
-    category: 'Invoice Template',
     label: 'Design & Branding',
     prompt: 'Complete branding package: UI kit, 5 custom illustrations & logo design for $450, payment due upon receipt.',
   },
   {
-    category: 'Invoice Template',
     label: 'Monthly Retainer',
     prompt: 'Monthly cloud infrastructure maintenance and consulting retainer for $800, Net 14 days.',
   },
   {
-    category: 'Email Template',
-    label: 'Friendly Reminder',
-    prompt: 'Write a warm, polite email reminding the client about their upcoming invoice with the PayPal payment link attached.',
-  },
-  {
-    category: 'Email Template',
-    label: 'Formal Completion',
-    prompt: 'Draft an executive formal completion email thanking them for the partnership and requesting settlement via PayPal.',
+    label: 'Fixed Milestone',
+    prompt: 'Milestone 2 completion: Payment gateway checkout flow & automated receipts for $1,200.',
   },
 ];
 import ClientPayPortal from '@/components/ClientPayPortal';
 import InvoiceModal from '@/components/InvoiceModal';
 import MerchantProfileModal from '@/components/MerchantProfileModal';
+import { TemplateManagerModal, getStoredTemplates } from '@/components/TemplateManagerModal';
 import { PayGenieLogo } from '@/components/PayGenieLogo';
-import { InvoiceData, ClientProfile, ChatMessage, MerchantProfile } from '@/types/invoice';
+import { InvoiceData, ClientProfile, ChatMessage, MerchantProfile, CustomTemplateItem } from '@/types/invoice';
 import { toast } from 'sonner';
 
 const DEFAULT_MERCHANT: MerchantProfile = {
@@ -84,14 +77,7 @@ const DEFAULT_CLIENTS: ClientProfile[] = [
     preferredLanguage: 'English',
     avatarBg: 'bg-blue-600',
     createdAt: '2026-03-01',
-    messages: [
-      {
-        id: 'msg-1',
-        role: 'assistant',
-        content: 'Hello! I am ready to generate invoices for Acme Tech. What project hours or deliverables should we bill today?',
-        timestamp: '10:00 AM',
-      },
-    ],
+    messages: [],
     invoices: [],
   },
   {
@@ -99,17 +85,10 @@ const DEFAULT_CLIENTS: ClientProfile[] = [
     name: 'Nexus Labs',
     email: 'finance@nexuslabs.co',
     company: 'Nexus Software Studio',
-    preferredLanguage: 'Tanglish',
+    preferredLanguage: 'English',
     avatarBg: 'bg-indigo-600',
     createdAt: '2026-03-05',
-    messages: [
-      {
-        id: 'msg-2',
-        role: 'assistant',
-        content: 'Vanakam bro! Nexus Labs-ku billing ready panlama? Project rate and hours sonna odane invoice generate pannitaen!',
-        timestamp: '11:15 AM',
-      },
-    ],
+    messages: [],
     invoices: [],
   },
   {
@@ -120,14 +99,7 @@ const DEFAULT_CLIENTS: ClientProfile[] = [
     preferredLanguage: 'English',
     avatarBg: 'bg-emerald-600',
     createdAt: '2026-03-10',
-    messages: [
-      {
-        id: 'msg-3',
-        role: 'assistant',
-        content: 'Welcome! Ready to bill brand illustrations or catering design for Bloom Bakery.',
-        timestamp: '02:30 PM',
-      },
-    ],
+    messages: [],
     invoices: [],
   },
 ];
@@ -156,6 +128,7 @@ export default function Home() {
 }
 
 function MerchantWorkspace() {
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'ledger'>('chat');
   
   // Clients & Sidebar state
@@ -164,23 +137,36 @@ function MerchantWorkspace() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
 
-  // New Client Form state
+  // New / Edit Client Form state
   const [newClientName, setNewClientName] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientCompany, setNewClientCompany] = useState('');
   const [newClientLang, setNewClientLang] = useState<'English' | 'Tanglish' | 'Tamil'>('English');
+  const [editingClientId, setEditingClientId] = useState<string | null>(null); // null = create new, string = edit existing
 
-  // Chat input & loading
+  // Chat input & loading (per-client isolated)
   const [userInput, setUserInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [generatingClientId, setGeneratingClientId] = useState<string | null>(null);
 
   // Modal inspection
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClientInvoicesDropdownOpen, setIsClientInvoicesDropdownOpen] = useState(false);
+  const [invoiceDropdownSearch, setInvoiceDropdownSearch] = useState('');
 
   // Merchant Profile Modal state
   const [merchantProfile, setMerchantProfile] = useState<MerchantProfile>(DEFAULT_MERCHANT);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Template Manager Modal state & dynamic billing templates
+  const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
+  const [templateManagerInitialType, setTemplateManagerInitialType] = useState<'invoice' | 'email' | 'whatsapp'>('invoice');
+  const [allAppTemplates, setAllAppTemplates] = useState<CustomTemplateItem[]>([]);
+
+  const reloadAppTemplates = () => {
+    setAllAppTemplates(getStoredTemplates());
+  };
 
   // Custom PayPal Branded Confirmation Modal state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -239,12 +225,47 @@ function MerchantWorkspace() {
   // Load from local storage on mount
   useEffect(() => {
     try {
-      const storedClients = localStorage.getItem('paygenie_clients_v2');
+      // Versioned key to ensure fresh chat starting state without old hardcoded AI messages
+      const storageKey = 'paygenie_clients_v3';
+      const storedClients = localStorage.getItem(storageKey);
+      const savedActiveClientId = localStorage.getItem('paygenie_selected_client_id');
+
       if (storedClients) {
         const parsed = JSON.parse(storedClients);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setClients(parsed);
-          setSelectedClientId(parsed[0].id);
+          // Persist the exact client thread the user was viewing
+          if (savedActiveClientId && parsed.some((c: any) => c.id === savedActiveClientId)) {
+            setSelectedClientId(savedActiveClientId);
+          } else {
+            setSelectedClientId(parsed[0].id);
+          }
+        }
+      } else {
+        // First load of v3: strip old seeded assistant starter messages from legacy cache
+        const oldV2 = localStorage.getItem('paygenie_clients_v2');
+        if (oldV2) {
+          try {
+            const parsedOld = JSON.parse(oldV2);
+            if (Array.isArray(parsedOld)) {
+              const cleaned = parsedOld.map((c: any) => ({
+                ...c,
+                messages: (c.messages || []).filter((m: any) => m.id !== 'msg-1' && m.id !== 'msg-2' && m.id !== 'msg-3'),
+              }));
+              setClients(cleaned);
+              if (savedActiveClientId && cleaned.some((c: any) => c.id === savedActiveClientId)) {
+                setSelectedClientId(savedActiveClientId);
+              } else {
+                setSelectedClientId(cleaned[0]?.id || DEFAULT_CLIENTS[0].id);
+              }
+              localStorage.setItem(storageKey, JSON.stringify(cleaned));
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        } else {
+          // Initialize with clean empty messages
+          localStorage.setItem(storageKey, JSON.stringify(DEFAULT_CLIENTS));
         }
       }
 
@@ -252,11 +273,16 @@ function MerchantWorkspace() {
       if (storedMerchant) {
         setMerchantProfile(JSON.parse(storedMerchant));
       }
+
+      // Load custom templates
+      reloadAppTemplates();
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsStorageLoaded(true);
     }
 
-    // Real-time settlement live sync listener
+    // Real-time settlement & cross-tab chat live sync listener
     let channel: BroadcastChannel | null = null;
     try {
       channel = new BroadcastChannel('paygenie_live_sync');
@@ -273,7 +299,7 @@ function MerchantWorkspace() {
                   : inv
               ),
             }));
-            saveClientsToStorage(updated);
+            saveClientsToStorage(updated, false); // Don't broadcast back
             return updated;
           });
 
@@ -283,6 +309,13 @@ function MerchantWorkspace() {
           });
 
           toast.success(`🎉 Client just paid invoice ${invoiceNumber} via PayPal!`);
+        } else if (event.data?.type === 'CLIENTS_UPDATED') {
+          // Cross-tab synchronization when another tab creates/updates messages or clients
+          if (Array.isArray(event.data.clients)) {
+            setClients(event.data.clients);
+          }
+        } else if (event.data?.type === 'TEMPLATES_UPDATED') {
+          reloadAppTemplates();
         }
       };
     } catch (e) {
@@ -294,33 +327,142 @@ function MerchantWorkspace() {
     };
   }, []);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeClient?.messages, loading]);
-
-  const saveClientsToStorage = (updatedClients: ClientProfile[]) => {
+  // Persist selected client to localStorage whenever user switches clients
+  const handleSelectClient = (clientId: string) => {
+    setSelectedClientId(clientId);
     try {
-      localStorage.setItem('paygenie_clients_v2', JSON.stringify(updatedClients));
-      // Also sync old storage for compatibility with client checkout
-      const flat = updatedClients.flatMap((c) => c.invoices || []);
-      localStorage.setItem('paygenie_invoices', JSON.stringify(flat));
+      localStorage.setItem('paygenie_selected_client_id', clientId);
     } catch (e) {
       console.error(e);
     }
   };
 
-  const handleCreateNewClient = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newClientName.trim() || !newClientEmail.trim()) {
-      toast.error('Client name and email are required');
+  useEffect(() => {
+    // Immediate scroll to bottom on mount, client switch, or message change
+    const scrollToBottom = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+      }
+    };
+    
+    // Run immediately and also after small tick for DOM settling
+    scrollToBottom();
+    const timer = setTimeout(scrollToBottom, 60);
+    return () => clearTimeout(timer);
+  }, [selectedClientId, activeClient?.messages, generatingClientId]);
+
+  const saveClientsToStorage = (updatedClients: ClientProfile[], broadcast = true) => {
+    try {
+      localStorage.setItem('paygenie_clients_v3', JSON.stringify(updatedClients));
+      localStorage.setItem('paygenie_clients_v2', JSON.stringify(updatedClients));
+      // Also sync old storage for compatibility with client checkout
+      const flat = updatedClients.flatMap((c) => c.invoices || []);
+      localStorage.setItem('paygenie_invoices', JSON.stringify(flat));
+
+      if (broadcast) {
+        const syncChannel = new BroadcastChannel('paygenie_live_sync');
+        syncChannel.postMessage({
+          type: 'CLIENTS_UPDATED',
+          clients: updatedClients,
+        });
+        syncChannel.close();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenAddClientModal = () => {
+    setEditingClientId(null);
+    setNewClientName('');
+    setNewClientEmail('');
+    setNewClientPhone('');
+    setNewClientCompany('');
+    setNewClientLang('English');
+    setIsNewClientModalOpen(true);
+  };
+
+  const handleOpenEditClientModal = (client: ClientProfile) => {
+    setEditingClientId(client.id);
+    setNewClientName(client.name);
+    setNewClientEmail(client.email);
+    setNewClientPhone(client.phone || '');
+    setNewClientCompany(client.company || '');
+    setNewClientLang(client.preferredLanguage || 'English');
+    setIsNewClientModalOpen(true);
+  };
+
+  const handleDeleteClient = (clientId: string) => {
+    const target = clients.find((c) => c.id === clientId);
+    if (!target) return;
+    if (clients.length <= 1) {
+      toast.error('At least one client thread must remain in workspace.');
       return;
     }
 
+    openConfirmation({
+      title: `Delete Client ${target.name}`,
+      description: `Are you sure you want to delete ${target.name} and all related invoices and chat logs? This action cannot be reversed.`,
+      confirmText: 'Delete Client',
+      isDestructive: true,
+      onConfirm: () => {
+        const remaining = clients.filter((c) => c.id !== clientId);
+        setClients(remaining);
+        setSelectedClientId(remaining[0].id);
+        saveClientsToStorage(remaining);
+        toast.success(`Client ${target.name} removed.`);
+      },
+    });
+  };
+
+  const handleSaveClientModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanName = newClientName.trim();
+    const cleanEmail = newClientEmail.trim();
+
+    if (!cleanName) {
+      toast.error('Client name is required');
+      return;
+    }
+    // Strict email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      toast.error('Please enter a valid email address (e.g. client@company.com)');
+      return;
+    }
+
+    if (newClientPhone.trim() && !/^[+0-9\s\-()]{7,20}$/.test(newClientPhone.trim())) {
+      toast.error('Please enter a valid phone/WhatsApp number with country code (e.g. +91 9876543210)');
+      return;
+    }
+
+    if (editingClientId) {
+      // Editing existing client
+      const updated = clients.map((c) => {
+        if (c.id !== editingClientId) return c;
+        return {
+          ...c,
+          name: cleanName,
+          email: cleanEmail,
+          phone: newClientPhone.trim() || undefined,
+          company: newClientCompany.trim() || undefined,
+          preferredLanguage: newClientLang,
+        };
+      });
+      setClients(updated);
+      saveClientsToStorage(updated);
+      setIsNewClientModalOpen(false);
+      toast.success(`Client ${cleanName} updated successfully!`);
+      return;
+    }
+
+    // Creating new client
     const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-amber-600'];
     const newClient: ClientProfile = {
       id: `client-${Date.now()}`,
       name: newClientName.trim(),
       email: newClientEmail.trim(),
+      phone: newClientPhone.trim() || undefined,
       company: newClientCompany.trim() || undefined,
       preferredLanguage: newClientLang,
       avatarBg: colors[Math.floor(Math.random() * colors.length)],
@@ -346,6 +488,7 @@ function MerchantWorkspace() {
     // Reset form
     setNewClientName('');
     setNewClientEmail('');
+    setNewClientPhone('');
     setNewClientCompany('');
     setIsNewClientModalOpen(false);
     toast.success(`Client ${newClient.name} added!`);
@@ -353,7 +496,7 @@ function MerchantWorkspace() {
 
   const handleSendMessage = async (customPrompt?: string) => {
     const textToSend = customPrompt || userInput;
-    if (!textToSend.trim() || loading || !activeClient) return;
+    if (!textToSend.trim() || generatingClientId === activeClient?.id || !activeClient) return;
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -373,7 +516,7 @@ function MerchantWorkspace() {
     });
 
     if (!customPrompt) setUserInput('');
-    setLoading(true);
+    setGeneratingClientId(activeClient.id);
 
     try {
       const latestInvoiceDraft = [...(activeClient.messages || [])]
@@ -395,12 +538,20 @@ function MerchantWorkspace() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to process message');
 
+      // Ensure invoice draft includes client phone if client has one
+      const invoiceWithContact: InvoiceData | undefined = data.invoice
+        ? {
+            ...data.invoice,
+            clientPhone: activeClient.phone || data.invoice.clientPhone,
+          }
+        : undefined;
+
       const aiMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
         content: data.reply || 'Invoice updated! Preview paathutu confirm pannunga.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        invoiceDraft: data.invoice || undefined,
+        invoiceDraft: invoiceWithContact,
       };
 
       setClients((prev) => {
@@ -413,7 +564,7 @@ function MerchantWorkspace() {
     } catch (err: any) {
       toast.error(err.message || 'AI message failed');
     } finally {
-      setLoading(false);
+      setGeneratingClientId(null);
     }
   };
 
@@ -451,12 +602,47 @@ function MerchantWorkspace() {
   const handleUpdateInvoice = (updated: InvoiceData) => {
     setSelectedInvoice(updated);
     setClients((prev) => {
-      const upd = prev.map((c) => ({
-        ...c,
-        invoices: (c.invoices || []).map((inv) =>
-          inv.invoiceNumber === updated.invoiceNumber ? updated : inv
-        ),
-      }));
+      const upd = prev.map((c) => {
+        // Find if this client owns the invoice or is currently active
+        const hasInvoice = (c.invoices || []).some((inv) => inv.invoiceNumber === updated.invoiceNumber);
+        const isCurrentActive = c.id === activeClient.id;
+
+        if (hasInvoice) {
+          return {
+            ...c,
+            invoices: (c.invoices || []).map((inv) =>
+              inv.invoiceNumber === updated.invoiceNumber ? updated : inv
+            ),
+            // Also update any message holding this invoiceDraft
+            messages: (c.messages || []).map((m) =>
+              m.invoiceDraft?.invoiceNumber === updated.invoiceNumber
+                ? { ...m, invoiceDraft: updated }
+                : m
+            ),
+          };
+        } else if (isCurrentActive) {
+          // If invoice is new or not yet in invoices array, add it to current client's invoices
+          const alreadyInInvoices = (c.invoices || []).some((i) => i.invoiceNumber === updated.invoiceNumber);
+          const nextInvoices = alreadyInInvoices
+            ? (c.invoices || []).map((i) => i.invoiceNumber === updated.invoiceNumber ? updated : i)
+            : [updated, ...(c.invoices || [])];
+
+          // Also update or add to messages
+          const nextMessages = (c.messages || []).map((m) =>
+            m.invoiceDraft?.invoiceNumber === updated.invoiceNumber
+              ? { ...m, invoiceDraft: updated }
+              : m
+          );
+
+          return {
+            ...c,
+            invoices: nextInvoices,
+            messages: nextMessages,
+          };
+        }
+        return c;
+      });
+
       saveClientsToStorage(upd);
       return upd;
     });
@@ -726,7 +912,7 @@ function MerchantWorkspace() {
               </span>
               <button
                 type="button"
-                onClick={() => setIsNewClientModalOpen(true)}
+                onClick={handleOpenAddClientModal}
                 className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-white bg-[#003087] hover:bg-[#0070e0] px-2.5 py-1 rounded-full shadow-2xs transition"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -757,7 +943,7 @@ function MerchantWorkspace() {
                 <button
                   key={c.id}
                   onClick={() => {
-                    setSelectedClientId(c.id);
+                    handleSelectClient(c.id);
                     if (activeTab === 'ledger') setActiveTab('chat');
                   }}
                   className={`w-full text-left p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 ${
@@ -779,14 +965,15 @@ function MerchantWorkspace() {
                   </div>
 
                   <div className="flex flex-col items-end shrink-0 gap-1">
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                      {c.preferredLanguage}
-                    </span>
-                    {pendingCount > 0 && (
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded-full">
+                    {generatingClientId === c.id ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0070ba] bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
+                        <RefreshCw className="w-2.5 h-2.5 animate-spin" /> thinking
+                      </span>
+                    ) : pendingCount > 0 ? (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                         {pendingCount} due
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </button>
               );
@@ -806,7 +993,7 @@ function MerchantWorkspace() {
             /* ======================================= */
             <div className="flex flex-col h-full min-h-0 animate-fade-in">
               
-              {/* Chat Header with Client Name & Language Selector */}
+              {/* Chat Header with Client Name, Phone, Edit/Delete & Language Selector */}
               <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl ${activeClient.avatarBg || 'bg-blue-600'} text-white flex items-center justify-center font-bold text-base shadow-xs`}>
@@ -816,50 +1003,246 @@ function MerchantWorkspace() {
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-bold text-[#001435]">{activeClient.name}</h3>
                       <span className="text-xs text-slate-500 font-normal">({activeClient.email})</span>
+                      {activeClient.phone && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          WhatsApp: {activeClient.phone}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-slate-500 font-medium">Dedicated PayGenie Invoicing Thread</p>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {activeClient.company ? `${activeClient.company} · ` : ''}Dedicated PayGenie Invoicing Thread
+                    </p>
                   </div>
                 </div>
 
-                {/* Judge / User Language Preference Picker & Clear Chat Button */}
-                <div className="flex items-center gap-3">
+                {/* Client Invoices Dropdown / Button, Edit, Delete, Clear Chat & Language Selector */}
+                <div className="flex items-center gap-2">
+                  {/* Client Invoices Manager Pill (Supports 1 or multiple invoices cleanly) */}
+                  {(() => {
+                    const clientInvoices = activeClient.invoices || [];
+                    const latestDraft = [...(activeClient.messages || [])].reverse().find((m) => m.invoiceDraft)?.invoiceDraft;
+                    
+                    // Combine confirmed invoices and any pending draft
+                    const availableInvoices = [...clientInvoices];
+                    if (latestDraft && !availableInvoices.some((i) => i.invoiceNumber === latestDraft.invoiceNumber)) {
+                      availableInvoices.unshift(latestDraft);
+                    }
+
+                    if (availableInvoices.length === 0) return null;
+
+                    if (availableInvoices.length === 1) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInvoice(availableInvoices[0]);
+                            setIsModalOpen(true);
+                          }}
+                          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#003087] hover:bg-[#0070e0] px-3.5 py-1.5 rounded-xl shadow-2xs transition"
+                          title="View & manage client invoice"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          <span>View Invoice</span>
+                        </button>
+                      );
+                    }
+
+                    // If multiple invoices exist (2, 3, 5 etc.) - Custom PayPal Theme Dropdown Menu with Search & Max Height
+                    const filteredDropdownInvoices = availableInvoices.filter((inv) =>
+                      inv.invoiceNumber.toLowerCase().includes(invoiceDropdownSearch.toLowerCase()) ||
+                      (inv.dueDate && inv.dueDate.toLowerCase().includes(invoiceDropdownSearch.toLowerCase())) ||
+                      inv.totalAmount.toString().includes(invoiceDropdownSearch)
+                    );
+
+                    return (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsClientInvoicesDropdownOpen(!isClientInvoicesDropdownOpen);
+                            setInvoiceDropdownSearch('');
+                          }}
+                          className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold text-white bg-[#003087] hover:bg-[#002466] px-3.5 py-1.5 rounded-xl shadow-2xs transition border border-[#003087]"
+                        >
+                          <Receipt className="w-3.5 h-3.5 text-blue-200" />
+                          <span>Invoices ({availableInvoices.length})</span>
+                          <span className={`text-[9px] transition-transform ${isClientInvoicesDropdownOpen ? 'rotate-180' : ''}`}>
+                            ▼
+                          </span>
+                        </button>
+
+                        {isClientInvoicesDropdownOpen && (
+                          <>
+                            {/* Backdrop to close dropdown on outside click */}
+                            <div
+                              className="fixed inset-0 z-30"
+                              onClick={() => {
+                                setIsClientInvoicesDropdownOpen(false);
+                                setInvoiceDropdownSearch('');
+                              }}
+                            />
+
+                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-40 py-2 animate-scale-up overflow-hidden">
+                              <div className="px-3.5 py-1.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                  {activeClient.name} Invoices
+                                </span>
+                                <span className="text-[10px] font-bold bg-blue-100/70 text-[#003087] px-2 py-0.5 rounded-full">
+                                  {availableInvoices.length} Total
+                                </span>
+                              </div>
+
+                              {/* Search Box inside Dropdown if 3 or more invoices */}
+                              {availableInvoices.length >= 3 && (
+                                <div className="p-2 border-b border-slate-100 bg-white">
+                                  <div className="relative">
+                                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={invoiceDropdownSearch}
+                                      onChange={(e) => setInvoiceDropdownSearch(e.target.value)}
+                                      placeholder="Search invoice # or amount..."
+                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2.5 py-1 text-xs text-slate-900 focus:outline-none focus:border-[#0070ba]"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Scrollable List with Max Height */}
+                              <div className="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                                {filteredDropdownInvoices.length === 0 ? (
+                                  <div className="p-4 text-center text-xs text-slate-400">
+                                    No invoices match &ldquo;{invoiceDropdownSearch}&rdquo;
+                                  </div>
+                                ) : (
+                                  filteredDropdownInvoices.map((inv) => (
+                                    <button
+                                      key={inv.invoiceNumber}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedInvoice(inv);
+                                        setIsModalOpen(true);
+                                        setIsClientInvoicesDropdownOpen(false);
+                                        setInvoiceDropdownSearch('');
+                                      }}
+                                      className="w-full text-left p-3 hover:bg-blue-50/70 transition flex items-center justify-between gap-2 cursor-pointer group"
+                                    >
+                                      <div className="truncate">
+                                        <p className="font-mono text-xs font-bold text-[#003087] group-hover:text-[#0070ba] flex items-center gap-1.5">
+                                          <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0070ba]" />
+                                          <span>{inv.invoiceNumber}</span>
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                          Due: {inv.dueDate || 'Upon receipt'}
+                                        </p>
+                                      </div>
+
+                                      <div className="text-right shrink-0">
+                                        <p className="font-bold text-xs text-[#001435]">
+                                          ${inv.totalAmount.toFixed(2)}
+                                        </p>
+                                        {inv.status === 'PAID' ? (
+                                          <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                                            PAID
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                                            PENDING
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <button
                     type="button"
-                    onClick={handleClearEntireChat}
-                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-xl border border-transparent hover:border-red-200 transition"
-                    title="Clear entire chat history"
+                    onClick={() => handleOpenEditClientModal(activeClient)}
+                    className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-[#003087] bg-white hover:bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 shadow-2xs transition"
+                    title="Edit client details or WhatsApp number"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-[#0070ba]" />
+                    <span className="hidden sm:inline">Edit Client</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteClient(activeClient.id)}
+                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl border border-transparent hover:border-red-200 transition"
+                    title={`Delete client ${activeClient.name}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
 
-                  <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
-                    <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                      <Globe className="w-3.5 h-3.5 text-[#0070ba]" />
-                      <span>Language:</span>
-                    </span>
-                    <div className="flex bg-slate-200/70 p-1 rounded-xl gap-1 text-xs font-bold">
-                      {(['English', 'Tanglish', 'Tamil'] as const).map((lang) => (
-                        <button
-                          key={lang}
-                          type="button"
-                          onClick={() => handleLanguageChange(activeClient.id, lang)}
-                          className={`cursor-pointer px-2.5 py-1 rounded-lg transition ${
-                            activeClient.preferredLanguage === lang
-                              ? 'bg-white text-[#003087] shadow-2xs'
-                              : 'text-slate-600 hover:text-slate-900'
-                          }`}
-                        >
-                          {lang}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleClearEntireChat}
+                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-2 rounded-xl border border-transparent hover:border-amber-200 transition"
+                    title="Clear entire chat history"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
               {/* Chat Message Scrollable Container */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5 bg-[#fcfdfe] min-h-0">
-                {(activeClient.messages || []).map((msg, index) => (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5 bg-[#fcfdfe] min-h-0 flex flex-col">
+                {!isStorageLoaded ? (
+                  /* Initial hydration loader — prevents flash of empty hero on refresh */
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-3 my-auto">
+                    <RefreshCw className="w-6 h-6 animate-spin text-[#0070ba]" />
+                    <span className="text-xs font-semibold text-slate-400">Loading conversation history...</span>
+                  </div>
+                ) : (activeClient.messages || []).length === 0 ? (
+                  /* Empty state: ChatGPT-style clean centered hero (disappears once user sends a message) */
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in my-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#003087] shadow-sm">
+                      <Sparkles className="w-7 h-7 text-[#0070ba]" />
+                    </div>
+
+                    <div className="space-y-1.5 max-w-lg">
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-[#001435] tracking-tight">
+                        {(() => {
+                          const hour = new Date().getHours();
+                          const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+                          return `${timeGreeting}! Ready to bill ${activeClient.name}?`;
+                        })()}
+                      </h2>
+                      <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                        Chat naturally in any preferred language or phrasing — PayGenie drafts, verifies and settles invoices seamlessly.
+                      </p>
+                    </div>
+
+                    {/* Quick Start Suggestions */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 max-w-md">
+                      {[
+                        `Bill 10 hours of design at $80/hr`,
+                        `Milestone payment for $1,200 with 5% discount`,
+                        `Monthly retainer invoice for ${activeClient.name}`,
+                      ].map((hint, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            setUserInput(hint);
+                          }}
+                          className="cursor-pointer text-xs font-semibold px-3.5 py-1.5 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-[#003087] border border-slate-200 hover:border-blue-300 transition shadow-2xs"
+                        >
+                          &ldquo;{hint}&rdquo;
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  (activeClient.messages || []).map((msg, index) => (
                   <div
                     key={msg.id}
                     className={`group/msg flex gap-3.5 max-w-2xl relative ${
@@ -966,9 +1349,10 @@ function MerchantWorkspace() {
                       </div>
                     </div>
                   </div>
-                ))}
+                ))
+              )}
 
-                {loading && (
+                {generatingClientId === activeClient.id && (
                   <div className="flex gap-3.5 mr-auto">
                     <div className="w-9 h-9 rounded-full bg-white text-[#0070ba] border border-slate-200 flex items-center justify-center">
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -990,25 +1374,37 @@ function MerchantWorkspace() {
                     <Layers className="w-3.5 h-3.5 text-[#0070ba]" />
                     <span>Templates:</span>
                   </span>
-                  {BILLING_TEMPLATES.map((tmpl, idx) => (
+                  {(allAppTemplates.filter((t) => t.type === 'invoice').length > 0
+                    ? allAppTemplates.filter((t) => t.type === 'invoice')
+                    : BILLING_TEMPLATES.map((b, i) => ({ id: `default-${i}`, name: b.label, content: b.prompt, type: 'invoice' as const }))
+                  ).map((tmpl) => (
                     <button
-                      key={idx}
+                      key={tmpl.id}
                       type="button"
-                      disabled={loading}
+                      disabled={generatingClientId === activeClient.id}
                       onClick={() => {
-                        setUserInput(tmpl.prompt);
-                        toast.info(`Loaded ${tmpl.label} into input. You can edit numbers or rates before sending.`);
+                        setUserInput(tmpl.content);
+                        toast.info(`Loaded "${tmpl.name}" template into input.`);
                       }}
-                      className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-[#003087] border border-slate-200 hover:border-blue-300 font-semibold transition"
+                      className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-[#003087] border border-slate-200 hover:border-blue-300 font-semibold transition shadow-2xs"
                     >
-                      {tmpl.category === 'Email Template' ? (
-                        <Mail className="w-3 h-3 text-[#0070ba]" />
-                      ) : (
-                        <FileCode className="w-3 h-3 text-emerald-600" />
-                      )}
-                      <span>{tmpl.label}</span>
+                      <FileCode className="w-3 h-3 text-emerald-600" />
+                      <span>{tmpl.name}</span>
                     </button>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplateManagerInitialType('invoice');
+                      setIsTemplateManagerOpen(true);
+                    }}
+                    className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition"
+                    title="Manage / Add / Edit Invoice Templates"
+                  >
+                    <Plus className="w-3 h-3 text-[#0070ba]" />
+                    <span>Manage</span>
+                  </button>
                 </div>
 
                 {/* Input Textarea Form (Enter sends, Shift+Enter new line) */}
@@ -1021,9 +1417,9 @@ function MerchantWorkspace() {
                 >
                   <div className="flex-1 relative">
                     <textarea
-                      rows={2}
+                      rows={Math.min(6, Math.max(2, userInput.split('\n').length))}
                       value={userInput}
-                      disabled={loading}
+                      disabled={generatingClientId === activeClient.id}
                       onChange={(e) => setUserInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -1032,14 +1428,14 @@ function MerchantWorkspace() {
                         }
                       }}
                       placeholder={`Tell PayGenie what to bill ${activeClient.name}... (Press Enter to send, Shift + Enter for new line)`}
-                      className="w-full bg-[#f8fafc] border border-slate-300 rounded-2xl px-5 py-3 text-base text-[#001435] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition font-medium resize-none leading-relaxed"
+                      className="w-full bg-[#f8fafc] border border-slate-300 rounded-2xl px-5 py-3 text-base text-[#001435] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition font-medium resize-y min-h-[58px] max-h-48 leading-relaxed custom-scrollbar"
                     />
                   </div>
 
                   <div className="flex flex-col items-end gap-1.5 shrink-0 pb-1">
                     <button
                       type="submit"
-                      disabled={loading || !userInput.trim()}
+                      disabled={generatingClientId === activeClient.id || !userInput.trim()}
                       className="pp-button-primary !py-3 !px-6 !text-base shadow-sm disabled:opacity-50"
                       title="Send Message (Enter)"
                     >
@@ -1162,12 +1558,19 @@ function MerchantWorkspace() {
 
       </main>
 
-      {/* Add New Client Modal */}
+      {/* Add / Edit Client Modal */}
       {isNewClientModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-scale-up">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-lg font-black text-[#001435]">Add New Client</h3>
+              <div>
+                <h3 className="text-lg font-black text-[#001435]">
+                  {editingClientId ? 'Edit Client Details' : 'Add New Client'}
+                </h3>
+                <span className="text-xs text-slate-400 font-medium">
+                  {editingClientId ? 'Update contact & WhatsApp billing profile' : 'Create dedicated client billing thread'}
+                </span>
+              </div>
               <button
                 onClick={() => setIsNewClientModalOpen(false)}
                 className="p-1 text-slate-400 hover:text-slate-700 rounded-full"
@@ -1176,7 +1579,7 @@ function MerchantWorkspace() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateNewClient} className="space-y-4 text-xs font-semibold">
+            <form onSubmit={handleSaveClientModal} className="space-y-3.5 text-xs font-semibold">
               <div className="space-y-1">
                 <label className="text-slate-700">Client / Contact Name *</label>
                 <input
@@ -1202,6 +1605,20 @@ function MerchantWorkspace() {
               </div>
 
               <div className="space-y-1">
+                <label className="text-slate-700 flex items-center justify-between">
+                  <span>WhatsApp / Phone Number (Optional)</span>
+                  <span className="text-[10.5px] font-normal text-slate-400">Include country code</span>
+                </label>
+                <input
+                  type="text"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(e.target.value)}
+                  placeholder="e.g. +91 9876543210 or +1 415 555 2671"
+                  className="w-full bg-[#f8fafc] border border-slate-300 rounded-xl p-2.5 text-sm text-[#001435] focus:outline-none focus:border-[#0070ba]"
+                />
+              </div>
+
+              <div className="space-y-1">
                 <label className="text-slate-700">Company Name (Optional)</label>
                 <input
                   type="text"
@@ -1210,26 +1627,6 @@ function MerchantWorkspace() {
                   placeholder="e.g. Cyberdyne Systems"
                   className="w-full bg-[#f8fafc] border border-slate-300 rounded-xl p-2.5 text-sm text-[#001435] focus:outline-none focus:border-[#0070ba]"
                 />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-slate-700">AI Chat Language Preference</label>
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  {(['English', 'Tanglish', 'Tamil'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      type="button"
-                      onClick={() => setNewClientLang(lang)}
-                      className={`py-2 rounded-xl border text-center transition font-bold ${
-                        newClientLang === lang
-                          ? 'bg-[#003087] text-white border-[#003087]'
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-                </div>
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
@@ -1244,13 +1641,21 @@ function MerchantWorkspace() {
                   type="submit"
                   className="pp-button-primary !py-2 !px-6 !text-xs"
                 >
-                  Create Client Thread
+                  {editingClientId ? 'Save Changes' : 'Create Client Thread'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Template Manager Modal */}
+      <TemplateManagerModal
+        isOpen={isTemplateManagerOpen}
+        onClose={() => setIsTemplateManagerOpen(false)}
+        initialType={templateManagerInitialType}
+        onTemplatesChanged={reloadAppTemplates}
+      />
 
       {/* Merchant Profile & API Keys Modal */}
       <MerchantProfileModal

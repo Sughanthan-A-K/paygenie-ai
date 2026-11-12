@@ -8,13 +8,16 @@ import {
   ShieldCheck, 
   ArrowLeft,
   Wifi,
-  Battery
+  Battery,
+  Download,
+  RefreshCw
 } from 'lucide-react';
-import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
+import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer, DISPATCH_ACTION } from '@paypal/react-paypal-js';
 import confetti from 'canvas-confetti';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
 import { PayGenieLogo } from '@/components/PayGenieLogo';
 
 export default function ClientPayPortal() {
@@ -99,6 +102,130 @@ export default function ClientPayPortal() {
       spread: 80,
       origin: { y: 0.6 },
     });
+  };
+
+  const handleClientDownloadPdf = () => {
+    if (!invoice) return;
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      
+      // Header brand
+      pdf.setFillColor(0, 48, 135); // PayPal Navy
+      pdf.rect(0, 0, pageWidth, 18, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('PayGenie — PayPal Business Invoice', 15, 12);
+
+      // Invoice Number & Status
+      pdf.setTextColor(0, 20, 53);
+      pdf.setFontSize(20);
+      pdf.text(`INVOICE: ${invoice.invoiceNumber}`, 15, 32);
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Date: ${invoice.date}   |   Due Date: ${invoice.dueDate}`, 15, 38);
+
+      pdf.setFont('helvetica', 'bold');
+      if (invoice.status === 'PAID') {
+        pdf.setTextColor(16, 185, 129);
+        pdf.text('STATUS: PAID VIA PAYPAL', pageWidth - 70, 32);
+      } else {
+        pdf.setTextColor(217, 119, 6);
+        pdf.text('STATUS: AWAITING PAYMENT', pageWidth - 70, 32);
+      }
+
+      // Counterparty boxes
+      pdf.setDrawColor(226, 232, 240);
+      pdf.setFillColor(248, 250, 252);
+      pdf.roundedRect(15, 45, (pageWidth - 35) / 2, 26, 3, 3, 'FD');
+      pdf.roundedRect(20 + (pageWidth - 35) / 2, 45, (pageWidth - 35) / 2, 26, 3, 3, 'FD');
+
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('BILLED FROM:', 19, 51);
+      pdf.text('BILLED TO:', 24 + (pageWidth - 35) / 2, 51);
+
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 20, 53);
+      pdf.text(invoice.sellerName || 'Merchant', 19, 57);
+      pdf.text(invoice.clientName || 'Client', 24 + (pageWidth - 35) / 2, 57);
+
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(invoice.sellerEmail || 'billing@merchant.com', 19, 63);
+      pdf.text(invoice.clientEmail || '', 24 + (pageWidth - 35) / 2, 63);
+
+      // Line items table
+      let y = 82;
+      pdf.setFillColor(241, 245, 249);
+      pdf.rect(15, y, pageWidth - 30, 8, 'F');
+      
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('DESCRIPTION', 18, y + 5.5);
+      pdf.text('QTY', pageWidth - 75, y + 5.5, { align: 'center' });
+      pdf.text('RATE', pageWidth - 45, y + 5.5, { align: 'right' });
+      pdf.text('TOTAL', pageWidth - 20, y + 5.5, { align: 'right' });
+
+      y += 8;
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.setTextColor(15, 23, 42);
+
+      invoice.items.forEach((item) => {
+        pdf.text(item.description, 18, y + 6);
+        pdf.text(item.quantity.toString(), pageWidth - 75, y + 6, { align: 'center' });
+        pdf.text(`$${(item.unitPrice || 0).toFixed(2)}`, pageWidth - 45, y + 6, { align: 'right' });
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`$${(item.total || 0).toFixed(2)}`, pageWidth - 20, y + 6, { align: 'right' });
+        pdf.setFont('helvetica', 'normal');
+        
+        pdf.setDrawColor(241, 245, 249);
+        pdf.line(15, y + 8, pageWidth - 15, y + 8);
+        y += 8;
+      });
+
+      // Totals
+      y += 6;
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text('Subtotal:', pageWidth - 60, y);
+      pdf.text(`$${invoice.subtotal.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+
+      if (invoice.discountAmount > 0) {
+        y += 6;
+        pdf.setTextColor(16, 185, 129);
+        pdf.text(`Discount (${invoice.discountPercentage}%):`, pageWidth - 60, y);
+        pdf.text(`-$${invoice.discountAmount.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+      }
+
+      if (invoice.taxAmount > 0) {
+        y += 6;
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`Tax (${invoice.taxPercentage}%):`, pageWidth - 60, y);
+        pdf.text(`+$${invoice.taxAmount.toFixed(2)}`, pageWidth - 20, y, { align: 'right' });
+      }
+
+      y += 8;
+      pdf.setFontSize(13);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 48, 135);
+      pdf.text('Total Amount Due:', pageWidth - 80, y);
+      pdf.text(`$${invoice.totalAmount.toFixed(2)} ${invoice.currency}`, pageWidth - 20, y, { align: 'right' });
+
+      pdf.save(`Invoice_${invoice.invoiceNumber}.pdf`);
+      toast.success('Invoice PDF downloaded!');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to download PDF');
+    }
   };
 
   const handlePaymentSuccess = (paymentId: string) => {
@@ -246,9 +373,19 @@ export default function ClientPayPortal() {
                 )}
               </div>
 
-              <div className="mt-3 pt-2.5 border-t border-white/10 flex justify-between text-[11px] text-blue-100">
+              <div className="mt-3 pt-2.5 border-t border-white/10 flex justify-between items-center text-[11px] text-blue-100">
                 <span>{invoice.invoiceNumber}</span>
-                <span>Due: {invoice.dueDate}</span>
+                
+                {/* 📄 1-Click Client PDF Download Button */}
+                <button
+                  type="button"
+                  onClick={handleClientDownloadPdf}
+                  className="cursor-pointer inline-flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-lg text-[10.5px] font-bold transition backdrop-blur-xs"
+                  title="Download official PDF copy"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Download PDF</span>
+                </button>
               </div>
             </div>
 
@@ -328,28 +465,10 @@ export default function ClientPayPortal() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2.5">
-                  <PayPalButtonsContainer
-                    invoice={invoice}
-                    onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
-                  />
-
-                  {/* ⚡ Demo Quick Settle Trigger (Video Recording & Live Hackathon Presentation Secret Weapon) */}
-                  <div className="pt-2 border-t border-dashed border-slate-200 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handlePaymentSuccess(`DEMO-SETTLE-${Math.floor(100000 + Math.random() * 900000)}`)}
-                      className="cursor-pointer inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-full text-[11px] font-bold text-[#003087] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200 transition shadow-2xs group"
-                      title="Instantly simulate approved PayPal payment for video demonstrations"
-                    >
-                      <span className="text-amber-500 group-hover:scale-110 transition-transform">⚡</span>
-                      <span>Demo Mode: Instant Quick Settle</span>
-                    </button>
-                    <span className="text-[9.5px] text-slate-400 block mt-1">
-                      Simulates real-time PayPal webhook capture & live balance update
-                    </span>
-                  </div>
-                </div>
+                <PayPalButtonsContainer
+                  invoice={invoice}
+                  onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
+                />
               )}
             </div>
 
@@ -367,6 +486,8 @@ export default function ClientPayPortal() {
   );
 }
 
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'Aa0xL150IPiY0x_Fd6WDNyJ3mPenuuOShacZwPEnH_k-3_Jv3O8yPfnHWo5qBqJhv2z5kiZTWTbfsG5j';
+
 function PayPalButtonsContainer({
   invoice,
   onSuccess,
@@ -374,69 +495,128 @@ function PayPalButtonsContainer({
   invoice: InvoiceData;
   onSuccess: (paymentId: string) => void;
 }) {
-  const [{ isPending, isRejected }] = usePayPalScriptReducer();
+  const options = React.useMemo(() => ({
+    clientId: PAYPAL_CLIENT_ID,
+    currency: invoice.currency || 'USD',
+    intent: 'capture',
+    components: 'buttons',
+  }), [invoice.currency]);
 
-  if (isPending) {
-    return (
-      <div className="flex flex-col items-center justify-center py-6 space-y-2 bg-slate-50 rounded-xl border border-slate-200">
-        <div className="w-6 h-6 border-2 border-[#0070ba] border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-semibold text-slate-500">Connecting to PayPal Sandbox...</span>
-      </div>
-    );
-  }
+  return (
+    <div className="w-full min-h-[46px]">
+      <PayPalScriptProvider options={options}>
+        <PayPalButtonsInner
+          invoice={invoice}
+          onSuccess={onSuccess}
+        />
+      </PayPalScriptProvider>
+    </div>
+  );
+}
+
+function PayPalButtonsInner({
+  invoice,
+  onSuccess,
+}: {
+  invoice: InvoiceData;
+  onSuccess: (paymentId: string) => void;
+}) {
+  const [{ isPending, isRejected }, dispatch] = usePayPalScriptReducer();
+
+  const handleManualReload = () => {
+    dispatch({
+      type: DISPATCH_ACTION.RESET_OPTIONS,
+      value: {
+        clientId: PAYPAL_CLIENT_ID,
+        currency: invoice.currency || 'USD',
+        intent: 'capture',
+        components: 'buttons',
+      },
+    });
+  };
 
   if (isRejected) {
     return (
-      <div className="p-3 bg-red-50 text-red-600 rounded-xl border border-red-200 text-xs font-medium text-center">
-        Unable to load PayPal Checkout. Please check network.
+      <div className="p-3 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2 animate-fade-in">
+        <p className="text-xs text-slate-600 font-medium">
+          PayPal Checkout gateway is reconnecting...
+        </p>
+        <button
+          type="button"
+          onClick={handleManualReload}
+          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-[#003087] bg-white hover:bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-2xs transition"
+        >
+          <RefreshCw className="w-3.5 h-3.5 text-[#0070ba]" />
+          <span>Reload PayPal Buttons</span>
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      <PayPalButtons
-        forceReRender={[invoice.invoiceNumber, invoice.totalAmount, invoice.currency]}
-        style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 44, color: 'gold' }}
-        createOrder={async () => {
-          try {
-            const res = await fetch('/api/paypal/create-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                amount: invoice.totalAmount,
-                currency: invoice.currency || 'USD',
-                invoiceNumber: invoice.invoiceNumber,
-                clientName: invoice.clientName,
-              }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
-            return data.orderId;
-          } catch (err: any) {
-            toast.error(err.message || 'PayPal Checkout failed');
-            throw err;
-          }
-        }}
-        onApprove={async (data) => {
-          try {
-            const res = await fetch('/api/paypal/capture-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ orderId: data.orderID }),
-            });
-            const captureData = await res.json();
-            if (!res.ok) throw new Error(captureData.error || 'Capture failed');
-            onSuccess(captureData.captureId || data.orderID);
-          } catch (err: any) {
-            toast.error(err.message || 'Payment capture failed');
-          }
-        }}
-        onError={(err) => {
-          console.error('PayPal error:', err);
-          toast.error('PayPal Checkout encountered an issue.');
-        }}
-      />
+    <div className="relative min-h-[46px]">
+      {isPending ? (
+        <div className="h-11 w-full rounded-full bg-slate-50 animate-pulse flex items-center justify-center text-xs text-[#003087] font-semibold gap-2 border border-blue-200">
+          <RefreshCw className="w-4 h-4 animate-spin text-[#0070ba]" />
+          <span>Connecting to PayPal Sandbox Gateway...</span>
+        </div>
+      ) : (
+        <PayPalButtons
+          style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 44, color: 'gold' }}
+          createOrder={async () => {
+            try {
+              const res = await fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  amount: invoice.totalAmount,
+                  currency: invoice.currency || 'USD',
+                  invoiceNumber: invoice.invoiceNumber,
+                  clientName: invoice.clientName,
+                }),
+              });
+              const data = await res.json();
+              if (!res.ok) throw new Error(data.error || 'Failed to initiate order');
+              return data.orderId;
+            } catch (err: any) {
+              toast.error(err.message || 'PayPal Checkout failed');
+              throw err;
+            }
+          }}
+          onApprove={async (data) => {
+            try {
+              const res = await fetch('/api/paypal/capture-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: data.orderID }),
+              });
+              const captureData = await res.json();
+              if (!res.ok) throw new Error(captureData.error || 'Capture failed');
+              onSuccess(captureData.captureId || data.orderID);
+            } catch (err: any) {
+              toast.error(err.message || 'Payment capture failed');
+            }
+          }}
+          onCancel={() => {
+            // User closed the PayPal checkout popup window before completing
+            toast.info('PayPal checkout window was closed.');
+          }}
+          onError={(err: any) => {
+            const msg = err?.message || String(err || '');
+            // Suppress benign cross-origin popup closure warnings from PayPal post-robot
+            if (
+              msg.includes('Window is closed') ||
+              msg.includes('Component closed') ||
+              msg.includes('detected') ||
+              msg.includes('can not determine type')
+            ) {
+              return;
+            }
+            console.error('PayPal error:', err);
+            toast.error('PayPal Checkout encountered an issue.');
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -38,15 +38,24 @@ export default function MerchantProfileModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      toast.error('Merchant name and email are required');
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
+
+    if (!cleanName) {
+      toast.error('Merchant business name is required');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+      toast.error('Please enter a valid billing email address');
       return;
     }
 
     const updated: MerchantProfile = {
       ...profile,
-      name: name.trim(),
-      email: email.trim(),
+      name: cleanName,
+      email: cleanEmail,
       company: company.trim(),
     };
 
@@ -148,35 +157,6 @@ export default function MerchantProfileModal({
                     {curr}
                   </button>
                 ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Integration Status Badges (Clean, Professional & Safe) */}
-          <div className="pt-4 border-t border-slate-200 space-y-2.5">
-            <span className="font-bold text-slate-400 uppercase tracking-wider block text-[11px]">
-              Active Backend Integrations
-            </span>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-[#003087]" />
-                  <span className="font-bold text-xs text-slate-800">PayPal Orders v2</span>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
-                  <ShieldCheck className="w-3 h-3" /> Connected
-                </span>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#0070ba]" />
-                  <span className="font-bold text-xs text-slate-800">Gemini 3.5 Flash</span>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-300">
-                  <Check className="w-3 h-3" /> Active
-                </span>
               </div>
             </div>
           </div>

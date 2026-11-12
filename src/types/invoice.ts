@@ -14,6 +14,7 @@ export interface InvoiceData {
   sellerEmail?: string;
   clientName: string;
   clientEmail: string;
+  clientPhone?: string; // Client WhatsApp / Phone number
   items: LineItem[];
   currency: string;
   subtotal: number;
@@ -46,12 +47,21 @@ export interface ClientProfile {
   id: string;
   name: string;
   email: string;
+  phone?: string; // WhatsApp or Phone number (with country code e.g. +91 9876543210)
   company?: string;
   preferredLanguage: 'English' | 'Tanglish' | 'Tamil';
   avatarBg?: string;
   createdAt: string;
   messages: ChatMessage[];
   invoices: InvoiceData[];
+}
+
+export interface CustomTemplateItem {
+  id: string;
+  name: string;
+  type: 'invoice' | 'email' | 'whatsapp';
+  content: string; // for invoice: prompt; for email: body; for whatsapp: message text
+  subject?: string; // only for email templates
 }
 
 export interface MerchantProfile {

@@ -1,22 +1,40 @@
 'use client';
 
-import { PayPalScriptProvider } from '@paypal/react-paypal-js';
+import React, { useEffect } from 'react';
 
 export function PayPalProvider({ children }: { children: React.ReactNode }) {
-  const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'test';
+  useEffect(() => {
+    // Intercept uncaught postMessage / post-robot window closed errors from PayPal popup
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason?.message || String(event.reason || '');
+      if (
+        reason.includes('Window is closed') ||
+        reason.includes('can not determine type') ||
+        reason.includes('Component closed')
+      ) {
+        event.preventDefault(); // Suppress noise from closing PayPal checkout popup
+      }
+    };
 
-  return (
-    <PayPalScriptProvider
-      options={{
-        clientId: clientId,
-        currency: 'USD',
-        intent: 'capture',
-        components: 'buttons',
-        enableFunding: 'card',
-        disableFunding: 'credit',
-      }}
-    >
-      {children}
-    </PayPalScriptProvider>
-  );
+    const handleError = (event: ErrorEvent) => {
+      const message = event.message || '';
+      if (
+        message.includes('Window is closed') ||
+        message.includes('can not determine type') ||
+        message.includes('Component closed')
+      ) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+
+  return <>{children}</>;
 }
