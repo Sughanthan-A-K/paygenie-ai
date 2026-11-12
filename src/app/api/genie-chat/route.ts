@@ -137,25 +137,35 @@ CURRENT_INVOICE_CONTEXT: ${JSON.stringify(currentInvoice || null)}
       try {
         parsedInvoice = JSON.parse(jsonMatch[1]);
         if (parsedInvoice) {
-          if (!parsedInvoice.status) {
-            parsedInvoice.status = currentInvoice?.status || 'PENDING';
-          }
-          
-          // Generate a guaranteed unique, professional invoice ID if AI returns generic/duplicate number
-          if (
-            !parsedInvoice.invoiceNumber ||
-            parsedInvoice.invoiceNumber.includes('XXXX') ||
-            parsedInvoice.invoiceNumber === 'INV-2026-0001'
-          ) {
-            if (currentInvoice?.invoiceNumber) {
-              // Retain existing invoice number during edits
-              parsedInvoice.invoiceNumber = currentInvoice.invoiceNumber;
-            } else {
-              // New invoice: Unique sequential timestamp + random hash
-              const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-              const timestampSuffix = Date.now().toString().slice(-4);
-              parsedInvoice.invoiceNumber = `INV-2026-${timestampSuffix}${randomSuffix.toString().slice(0, 2)}`;
-            }
+          // Detect whether user is editing an existing invoice or creating a brand new invoice
+          const userLower = (userMessage || '').toLowerCase();
+          const isExplicitEdit = 
+            userLower.includes('edit') ||
+            userLower.includes('change') ||
+            userLower.includes('update') ||
+            userLower.includes('add tax') ||
+            userLower.includes('add discount') ||
+            userLower.includes('modify') ||
+            userLower.includes('discount-ah') ||
+            userLower.includes('tax-ah') ||
+            userLower.includes('rate-ah') ||
+            userLower.includes('maathu');
+
+          if (isExplicitEdit && currentInvoice) {
+            // Keep existing invoice number and status during edits
+            parsedInvoice.invoiceNumber = currentInvoice.invoiceNumber;
+            parsedInvoice.status = currentInvoice.status || 'PENDING';
+            if (currentInvoice.paymentId) parsedInvoice.paymentId = currentInvoice.paymentId;
+            if (currentInvoice.paidAt) parsedInvoice.paidAt = currentInvoice.paidAt;
+          } else {
+            // BRAND NEW INVOICE: Must ALWAYS be PENDING/UNPAID with fresh unique invoiceNumber!
+            parsedInvoice.status = 'PENDING';
+            delete parsedInvoice.paymentId;
+            delete parsedInvoice.paidAt;
+
+            const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+            const timestampSuffix = Date.now().toString().slice(-4);
+            parsedInvoice.invoiceNumber = `INV-2026-${timestampSuffix}${randomSuffix.toString().slice(0, 2)}`;
           }
         }
       } catch (e) {

@@ -29,9 +29,7 @@ import {
   Layers,
   FileCode,
   FileText,
-  Mail,
-  Sun,
-  Moon
+  Mail
 } from 'lucide-react';
 
 const BILLING_TEMPLATES = [
@@ -56,6 +54,7 @@ import ClientPayPortal from '@/components/ClientPayPortal';
 import InvoiceModal from '@/components/InvoiceModal';
 import MerchantProfileModal from '@/components/MerchantProfileModal';
 import { TemplateManagerModal, getStoredTemplates } from '@/components/TemplateManagerModal';
+import { OnboardingTour, ReplayTourButton } from '@/components/OnboardingTour';
 import { PayGenieLogo } from '@/components/PayGenieLogo';
 import { InvoiceData, ClientProfile, ChatMessage, MerchantProfile, CustomTemplateItem } from '@/types/invoice';
 import { toast } from 'sonner';
@@ -132,35 +131,16 @@ export default function Home() {
 function MerchantWorkspace() {
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'ledger'>('chat');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-
-  // Load theme preference on mount
-  useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem('paygenie_theme') as 'dark' | 'light' | null;
-      if (savedTheme) {
-        setTheme(savedTheme);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    try {
-      localStorage.setItem('paygenie_theme', next);
-    } catch (e) {
-      console.error(e);
-    }
-  };
   
   // Clients & Sidebar state
   const [clients, setClients] = useState<ClientProfile[]>(DEFAULT_CLIENTS);
   const [selectedClientId, setSelectedClientId] = useState<string>(DEFAULT_CLIENTS[0].id);
   const [searchQuery, setSearchQuery] = useState('');
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  
+  // Multi-select bulk delete state
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([]);
 
   // New / Edit Client Form state
   const [newClientName, setNewClientName] = useState('');
@@ -180,6 +160,9 @@ function MerchantWorkspace() {
   const [isModalPreviewOnly, setIsModalPreviewOnly] = useState(false);
   const [isClientInvoicesDropdownOpen, setIsClientInvoicesDropdownOpen] = useState(false);
   const [invoiceDropdownSearch, setInvoiceDropdownSearch] = useState('');
+
+  // Onboarding Tour manual replay state
+  const [forceTourOpen, setForceTourOpen] = useState(false);
 
   // Merchant Profile Modal state
   const [merchantProfile, setMerchantProfile] = useState<MerchantProfile>(DEFAULT_MERCHANT);
@@ -503,6 +486,51 @@ function MerchantWorkspace() {
     });
   };
 
+  const handleToggleSelectClient = (clientId: string) => {
+    setSelectedClientIds((prev) =>
+      prev.includes(clientId) ? prev.filter((id) => id !== clientId) : [...prev, clientId]
+    );
+  };
+
+  const handleSelectAllClients = () => {
+    if (selectedClientIds.length === filteredClients.length) {
+      setSelectedClientIds([]);
+    } else {
+      setSelectedClientIds(filteredClients.map((c) => c.id));
+    }
+  };
+
+  const handleBulkDeleteClients = () => {
+    if (selectedClientIds.length === 0) {
+      toast.error('Select at least one client to delete.');
+      return;
+    }
+
+    if (selectedClientIds.length >= clients.length) {
+      toast.error('At least one client thread must remain in workspace.');
+      return;
+    }
+
+    const count = selectedClientIds.length;
+    openConfirmation({
+      title: `Delete ${count} Selected Client${count > 1 ? 's' : ''}`,
+      description: `Are you sure you want to delete ${count} client profile${count > 1 ? 's' : ''} along with their chat histories and invoice drafts? This cannot be undone.`,
+      confirmText: `Delete ${count} Client${count > 1 ? 's' : ''}`,
+      isDestructive: true,
+      onConfirm: () => {
+        const remaining = clients.filter((c) => !selectedClientIds.includes(c.id));
+        setClients(remaining);
+        setSelectedClientIds([]);
+        setIsSelectMode(false);
+        if (!remaining.some((c) => c.id === selectedClientId)) {
+          setSelectedClientId(remaining[0].id);
+        }
+        saveClientsToStorage(remaining);
+        toast.success(`Deleted ${count} client${count > 1 ? 's' : ''} successfully.`);
+      },
+    });
+  };
+
   const handleSaveClientModal = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = newClientName.trim();
@@ -544,7 +572,7 @@ function MerchantWorkspace() {
       return;
     }
 
-    // Creating new client
+    // Creating new client (messages start empty so the clean, dynamic "Good evening! Ready to bill [Client Name]?" hero shows automatically)
     const colors = ['bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-amber-600'];
     const newClient: ClientProfile = {
       id: `client-${Date.now()}`,
@@ -555,16 +583,7 @@ function MerchantWorkspace() {
       preferredLanguage: newClientLang,
       avatarBg: colors[Math.floor(Math.random() * colors.length)],
       createdAt: new Date().toISOString().split('T')[0],
-      messages: [
-        {
-          id: `msg-welcome-${Date.now()}`,
-          role: 'assistant',
-          content: newClientLang === 'Tanglish' 
-            ? `Vanakam bro! ${newClientName} ku new billing chat ready. Enna work bill pannanum?`
-            : `Hello! Billing workspace for ${newClientName} is ready. Describe the project or rate to draft an invoice.`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        },
-      ],
+      messages: [],
       invoices: [],
     };
 
@@ -607,9 +626,25 @@ function MerchantWorkspace() {
     setGeneratingClientId(activeClient.id);
 
     try {
-      const latestInvoiceDraft = [...(activeClient.messages || [])]
+      // Find existing unpaid/active invoice draft if user is modifying it, otherwise don't pass PAID invoice as template
+      const rawLatestDraft = [...(activeClient.messages || [])]
         .reverse()
         .find((m) => m.invoiceDraft)?.invoiceDraft || activeClient.invoices[0] || null;
+
+      const userTextLower = textToSend.trim().toLowerCase();
+      const isModificationPrompt = 
+        userTextLower.includes('edit') ||
+        userTextLower.includes('change') ||
+        userTextLower.includes('update') ||
+        userTextLower.includes('tax') ||
+        userTextLower.includes('discount') ||
+        userTextLower.includes('modify') ||
+        userTextLower.includes('maathu');
+
+      // Only pass currentInvoice context if the user is explicitly editing OR the draft is still UNPAID
+      const currentInvoiceContext = (isModificationPrompt || (rawLatestDraft && rawLatestDraft.status !== 'PAID'))
+        ? rawLatestDraft
+        : null;
 
       const res = await fetch('/api/genie-chat', {
         method: 'POST',
@@ -617,7 +652,7 @@ function MerchantWorkspace() {
         body: JSON.stringify({
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           userMessage: textToSend.trim(),
-          currentInvoice: latestInvoiceDraft,
+          currentInvoice: currentInvoiceContext,
           clientProfile: activeClient,
           preferredLanguage: activeClient.preferredLanguage,
         }),
@@ -851,16 +886,7 @@ function MerchantWorkspace() {
             if (c.id !== activeClient.id) return c;
             return {
               ...c,
-              messages: [
-                {
-                  id: `msg-welcome-${Date.now()}`,
-                  role: 'assistant' as const,
-                  content: c.preferredLanguage === 'Tanglish'
-                    ? `Chat reset pannitaen bro! ${c.name}-ku enna bill create pannanum?`
-                    : `Chat cleared! Ready to draft a fresh invoice for ${c.name}.`,
-                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                },
-              ],
+              messages: [],
             };
           });
           saveClientsToStorage(upd);
@@ -879,114 +905,56 @@ function MerchantWorkspace() {
   );
 
   return (
-    <div className={`h-screen flex flex-col font-sans overflow-hidden transition-colors duration-300 relative ${
-      theme === 'dark' 
-        ? 'bg-[#060a12] text-slate-100 selection:bg-blue-500/30' 
-        : 'bg-[#f8fafc] text-[#001435] selection:bg-[#0070ba]/20'
-    }`}>
-
-      {/* Ambient Radial Soft Glow on Dark Theme (matching reference images) */}
-      {theme === 'dark' && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <div className="absolute -top-40 left-1/4 w-[600px] h-[400px] bg-gradient-to-r from-blue-600/20 via-indigo-600/15 to-purple-600/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute bottom-0 right-10 w-[500px] h-[400px] bg-gradient-to-tl from-[#0070ba]/20 via-sky-600/10 to-transparent rounded-full blur-[100px]" />
-          <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] bg-[size:32px_32px]" />
-        </div>
-      )}
+    <div className="h-screen bg-[#f8fafc] text-[#001435] flex flex-col font-sans overflow-hidden">
       
       {/* Top Enterprise Header */}
-      <header className={`shrink-0 z-40 transition-colors duration-300 ${
-        theme === 'dark'
-          ? 'border-b border-white/10 bg-[#090e17]/80 backdrop-blur-xl shadow-lg'
-          : 'border-b border-slate-200 bg-white shadow-xs'
-      }`}>
+      <header className="border-b border-slate-200 bg-white shrink-0 z-40 shadow-xs">
         <div className="w-full px-4 sm:px-8 h-18 flex items-center justify-between">
           
           <div className="flex items-center gap-4">
-            <PayGenieLogo 
-              size={38} 
-              textColor={theme === 'dark' ? 'text-white' : 'text-[#001435]'} 
-              subtextColor={theme === 'dark' ? 'text-blue-300/80' : 'text-slate-500'} 
-            />
-            <span className={`hidden lg:inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
-              theme === 'dark'
-                ? 'bg-blue-500/10 text-blue-300 border border-blue-400/20'
-                : 'bg-blue-50 text-[#003087] border border-blue-200/80'
-            }`}>
+            <PayGenieLogo size={38} textColor="text-[#001435]" subtextColor="text-slate-500" />
+            <span className="hidden lg:inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-[#003087] border border-blue-200/80">
               Client Hub & Billing Copilot
             </span>
           </div>
 
-          {/* Tab Navigation, Theme Switcher & Merchant Profile Trigger */}
+          {/* Tab Navigation & Merchant Profile Trigger */}
           <div className="flex items-center gap-3">
-            {/* Segment Tabs */}
-            <div className={`p-1 rounded-full flex items-center ${
-              theme === 'dark'
-                ? 'bg-white/5 border border-white/10 backdrop-blur-md'
-                : 'bg-slate-100 border border-slate-200'
-            }`}>
+            <div id="onboarding-ledger-tab" className="pp-segment-tabs">
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`text-xs sm:text-sm font-bold py-1.5 px-4 sm:px-5 rounded-full cursor-pointer transition-all ${
-                  activeTab === 'chat'
-                    ? theme === 'dark'
-                      ? 'bg-gradient-to-r from-blue-600 to-[#0070ba] text-white shadow-md'
-                      : 'bg-white text-[#001435] shadow-xs'
-                    : theme === 'dark'
-                      ? 'text-slate-400 hover:text-white'
-                      : 'text-slate-600 hover:text-slate-900'
+                className={`pp-segment-tab text-sm sm:text-base font-bold py-2 px-6 cursor-pointer ${
+                  activeTab === 'chat' ? 'pp-segment-tab-active' : ''
                 }`}
               >
-                Invoicing Chats
+                Client Invoicing Chats
               </button>
               <button
                 onClick={() => setActiveTab('ledger')}
-                className={`text-xs sm:text-sm font-bold py-1.5 px-4 sm:px-5 rounded-full cursor-pointer transition-all ${
-                  activeTab === 'ledger'
-                    ? theme === 'dark'
-                      ? 'bg-gradient-to-r from-blue-600 to-[#0070ba] text-white shadow-md'
-                      : 'bg-white text-[#001435] shadow-xs'
-                    : theme === 'dark'
-                      ? 'text-slate-400 hover:text-white'
-                      : 'text-slate-600 hover:text-slate-900'
+                className={`pp-segment-tab text-sm sm:text-base font-bold py-2 px-6 cursor-pointer ${
+                  activeTab === 'ledger' ? 'pp-segment-tab-active' : ''
                 }`}
               >
-                Master Ledger ({allInvoices.length})
+                Master Settlement Ledger ({allInvoices.length})
               </button>
             </div>
 
-            {/* Dark / Light Mode Pill Toggle */}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className={`cursor-pointer p-2 rounded-full transition-all border ${
-                theme === 'dark'
-                  ? 'bg-white/5 hover:bg-white/10 text-amber-300 border-white/10 shadow-inner'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 shadow-2xs'
-              }`}
-              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+            {/* Replay Interactive Tour Button */}
+            <ReplayTourButton onReplay={() => setForceTourOpen(true)} />
 
             {/* Merchant User Profile Button */}
             <button
+              id="onboarding-profile-btn"
               type="button"
               onClick={() => setIsProfileModalOpen(true)}
-              className={`cursor-pointer flex items-center gap-2.5 p-1.5 pr-3 rounded-full transition shadow-2xs group border ${
-                theme === 'dark'
-                  ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
-                  : 'bg-slate-50 hover:bg-blue-50/70 border-slate-200 text-[#001435]'
-              }`}
+              className="cursor-pointer flex items-center gap-2.5 p-1.5 pr-3 rounded-full bg-slate-50 hover:bg-blue-50/70 border border-slate-200 hover:border-blue-300 transition shadow-2xs group"
               title="Merchant Profile & API Settings"
             >
-              <div className="w-8 h-8 rounded-full bg-[#0070ba] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-[#003087] text-white flex items-center justify-center font-bold text-xs shadow-xs">
                 {merchantProfile.name.slice(0, 1)}
               </div>
               <div className="text-left hidden md:block">
-                <span className={`text-xs font-bold block leading-tight ${
-                  theme === 'dark' ? 'text-slate-200 group-hover:text-blue-300' : 'text-[#001435] group-hover:text-[#0070ba]'
-                }`}>
+                <span className="text-xs font-bold text-[#001435] block leading-tight group-hover:text-[#0070ba]">
                   {merchantProfile.name}
                 </span>
                 <span className="text-[10px] text-slate-400 block font-medium">
@@ -999,49 +967,35 @@ function MerchantWorkspace() {
         </div>
       </header>
 
-      {/* Balance Strip */}
-      <section className={`shrink-0 border-b transition-colors duration-300 relative z-10 ${
-        theme === 'dark'
-          ? 'bg-[#090e17]/50 border-white/10 backdrop-blur-md'
-          : 'bg-white border-slate-200/80'
-      }`}>
+      {/* Freelancer Balance Strip */}
+      <section id="onboarding-balance-strip" className="bg-white border-b border-slate-200/80 shrink-0">
         <div className="w-full px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
           
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                theme === 'dark'
-                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              }`}>
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
                 <Wallet className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                   PayPal Settled Balance
                 </span>
-                <span className="text-xl font-black text-emerald-500">
+                <span className="text-xl font-black text-emerald-600">
                   ${totalSettledBalance.toFixed(2)}{' '}
                   <span className="text-xs font-bold text-slate-400">USD</span>
                 </span>
               </div>
             </div>
 
-            <div className={`hidden sm:flex items-center gap-3 pl-8 border-l ${
-              theme === 'dark' ? 'border-white/10' : 'border-slate-200'
-            }`}>
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${
-                theme === 'dark'
-                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-              }`}>
+            <div className="hidden sm:flex items-center gap-3 pl-8 border-l border-slate-200">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
                 <Receipt className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                   Pending Receivables
                 </span>
-                <span className={`text-xl font-black ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>
+                <span className="text-xl font-black text-slate-800">
                   ${totalPendingAmount.toFixed(2)}{' '}
                   <span className="text-xs font-bold text-slate-400">USD</span>
                 </span>
@@ -1050,11 +1004,7 @@ function MerchantWorkspace() {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full border ${
-              theme === 'dark'
-                ? 'text-slate-300 bg-white/5 border-white/10 backdrop-blur-md'
-                : 'text-slate-600 bg-slate-50 border-slate-200'
-            }`}>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>PayPal Live Sync Connected</span>
             </div>
@@ -1064,118 +1014,150 @@ function MerchantWorkspace() {
       </section>
 
       {/* Main Hub: Dual Panel (Client Sidebar + Active Chat/Ledger) */}
-      <main className="flex-1 w-full px-4 sm:px-8 py-4 overflow-hidden flex min-h-0 gap-5 relative z-10">
+      <main className="flex-1 w-full px-4 sm:px-8 py-4 overflow-hidden flex min-h-0 gap-5">
         
         {/* ============================================================ */}
         {/* LEFT CLIENT SIDEBAR: Each Client Name = Dedicated Chat       */}
         {/* ============================================================ */}
-        <aside className={`w-80 rounded-3xl overflow-hidden flex flex-col shrink-0 transition-colors duration-300 border ${
-          theme === 'dark'
-            ? 'bg-[#0a0f1d]/70 border-white/10 backdrop-blur-xl shadow-2xl'
-            : 'bg-white border-slate-200 shadow-sm'
-        }`}>
+        <aside id="onboarding-client-roster" className="w-80 bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden flex flex-col shrink-0">
           
           {/* Sidebar Top: Search & Add Button */}
-          <div className={`p-4 border-b space-y-3 transition-colors duration-300 ${
-            theme === 'dark'
-              ? 'border-white/10 bg-white/[0.02]'
-              : 'border-slate-200 bg-slate-50/70'
-          }`}>
+          <div className="p-4 border-b border-slate-200 bg-slate-50/70 space-y-3">
             <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
-                theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-              }`}>
-                <Users className={`w-4 h-4 ${theme === 'dark' ? 'text-blue-400' : 'text-[#003087]'}`} />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-[#003087]" />
                 <span>Client Roster ({clients.length})</span>
               </span>
               <button
                 type="button"
                 onClick={handleOpenAddClientModal}
-                className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] px-2.5 py-1 rounded-full shadow-sm transition active:scale-95"
+                className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-white bg-[#003087] hover:bg-[#0070e0] px-2.5 py-1 rounded-full shadow-2xs transition"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Client</span>
               </button>
             </div>
 
-            {/* Search Box */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search clients..."
-                className={`w-full rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none transition-all ${
-                  theme === 'dark'
-                    ? 'bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30'
-                    : 'bg-white border border-slate-300 text-slate-900 focus:border-[#0070ba]'
+            {/* Search Box & Multi-Select Toggle Button */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search clients..."
+                  className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#0070ba]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSelectMode(!isSelectMode);
+                  setSelectedClientIds([]);
+                }}
+                className={`cursor-pointer px-2.5 py-1.5 rounded-xl border text-xs font-bold transition shadow-2xs shrink-0 flex items-center gap-1 ${
+                  isSelectMode
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'
                 }`}
-              />
+                title={isSelectMode ? 'Cancel Selection' : 'Select Multiple Clients'}
+              >
+                <span>{isSelectMode ? 'Cancel' : 'Select'}</span>
+              </button>
             </div>
+
+            {/* Bulk Selection Actions Bar */}
+            {isSelectMode && (
+              <div className="p-2 rounded-xl bg-blue-50/80 border border-blue-200 flex items-center justify-between gap-2 animate-fade-in text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={handleSelectAllClients}
+                  className="cursor-pointer text-slate-700 hover:text-[#003087] flex items-center gap-1 text-[11px]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedClientIds.length === filteredClients.length && filteredClients.length > 0}
+                    onChange={handleSelectAllClients}
+                    className="w-3.5 h-3.5 text-[#0070ba] rounded cursor-pointer"
+                  />
+                  <span>Select All ({selectedClientIds.length})</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={selectedClientIds.length === 0}
+                  onClick={handleBulkDeleteClients}
+                  className="cursor-pointer px-3 py-1 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white text-[11px] font-bold transition shadow-2xs flex items-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Delete ({selectedClientIds.length})</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Client List Items */}
-          <div className={`flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1 divide-y ${
-            theme === 'dark' ? 'divide-white/5' : 'divide-slate-100'
-          }`}>
+          <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-100 p-2 space-y-1">
             {filteredClients.map((c) => {
               const isSelected = c.id === selectedClientId;
+              const isChecked = selectedClientIds.includes(c.id);
               const pendingCount = (c.invoices || []).filter((i) => i.status !== 'PAID').length;
 
               return (
-                <button
+                <div
                   key={c.id}
                   onClick={() => {
-                    handleSelectClient(c.id);
-                    if (activeTab === 'ledger') setActiveTab('chat');
+                    if (isSelectMode) {
+                      handleToggleSelectClient(c.id);
+                    } else {
+                      handleSelectClient(c.id);
+                      if (activeTab === 'ledger') setActiveTab('chat');
+                    }
                   }}
-                  className={`w-full text-left p-3 rounded-2xl transition-all cursor-pointer flex items-center justify-between gap-3 border ${
-                    isSelected
-                      ? theme === 'dark'
-                        ? 'bg-gradient-to-r from-blue-900/40 via-blue-800/30 to-indigo-900/40 border-blue-500/40 shadow-inner'
-                        : 'bg-blue-50/90 border-blue-200 shadow-2xs'
-                      : theme === 'dark'
-                        ? 'hover:bg-white/5 border-transparent'
-                        : 'hover:bg-slate-50 border-transparent'
+                  className={`w-full text-left p-3 rounded-2xl transition cursor-pointer flex items-center justify-between gap-3 ${
+                    isSelected && !isSelectMode
+                      ? 'bg-blue-50/90 border border-blue-200 shadow-2xs'
+                      : isChecked
+                      ? 'bg-blue-50/60 border border-blue-300 shadow-2xs'
+                      : 'hover:bg-slate-50 border border-transparent'
                   }`}
                 >
                   <div className="flex items-center gap-3 truncate">
+                    {/* Checkbox in Multi-Select Mode */}
+                    {isSelectMode ? (
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleSelectClient(c.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 text-[#0070ba] rounded cursor-pointer shrink-0"
+                      />
+                    ) : null}
+
                     <div className={`w-9 h-9 rounded-xl ${c.avatarBg || 'bg-blue-600'} text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs`}>
                       {c.name.slice(0, 1)}
                     </div>
                     <div className="truncate">
-                      <p className={`text-sm font-bold truncate ${
-                        isSelected 
-                          ? theme === 'dark' ? 'text-blue-300' : 'text-[#003087]'
-                          : theme === 'dark' ? 'text-slate-100' : 'text-[#001435]'
-                      }`}>
+                      <p className={`text-sm font-bold truncate ${isSelected && !isSelectMode ? 'text-[#003087]' : 'text-[#001435]'}`}>
                         {c.name}
                       </p>
-                      <p className={`text-[11px] truncate ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{c.email}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{c.email}</p>
                     </div>
                   </div>
 
                   <div className="flex flex-col items-end shrink-0 gap-1">
                     {generatingClientId === c.id ? (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
-                        theme === 'dark'
-                          ? 'text-blue-300 bg-blue-500/10 border-blue-400/20'
-                          : 'text-[#0070ba] bg-blue-50 border-blue-200'
-                      }`}>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#0070ba] bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">
                         <RefreshCw className="w-2.5 h-2.5 animate-spin" /> thinking
                       </span>
                     ) : pendingCount > 0 ? (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        theme === 'dark'
-                          ? 'text-amber-300 bg-amber-500/10 border-amber-400/20'
-                          : 'text-amber-700 bg-amber-50 border-amber-200'
-                      }`}>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                         {pendingCount} due
                       </span>
                     ) : null}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1185,11 +1167,7 @@ function MerchantWorkspace() {
         {/* ============================================================ */}
         {/* RIGHT PANEL: DEDICATED CLIENT CHAT / MASTER LEDGER           */}
         {/* ============================================================ */}
-        <section className={`flex-1 rounded-3xl overflow-hidden flex flex-col min-h-0 transition-colors duration-300 border ${
-          theme === 'dark'
-            ? 'bg-[#0a0f1d]/70 border-white/10 backdrop-blur-xl shadow-2xl'
-            : 'bg-white border-slate-200 shadow-sm'
-        }`}>
+        <section className="flex-1 bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-0">
           
           {activeTab === 'chat' ? (
             /* ======================================= */
@@ -1198,30 +1176,22 @@ function MerchantWorkspace() {
             <div className="flex flex-col h-full min-h-0 animate-fade-in">
               
               {/* Chat Header with Client Name, Phone, Edit/Delete & Language Selector */}
-              <div className={`p-4 border-b flex items-center justify-between shrink-0 transition-colors duration-300 ${
-                theme === 'dark'
-                  ? 'border-white/10 bg-white/[0.02]'
-                  : 'border-slate-200 bg-slate-50'
-              }`}>
+              <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-xl ${activeClient.avatarBg || 'bg-blue-600'} text-white flex items-center justify-center font-bold text-base shadow-xs`}>
                     {activeClient.name.slice(0, 1)}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className={`text-base font-bold ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>{activeClient.name}</h3>
-                      <span className={`text-xs font-normal ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>({activeClient.email})</span>
+                      <h3 className="text-base font-bold text-[#001435]">{activeClient.name}</h3>
+                      <span className="text-xs text-slate-500 font-normal">({activeClient.email})</span>
                       {activeClient.phone && (
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${
-                          theme === 'dark'
-                            ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
-                            : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                        }`}>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                           WhatsApp: {activeClient.phone}
                         </span>
                       )}
                     </div>
-                    <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <p className="text-xs text-slate-500 font-medium">
                       {activeClient.company ? `${activeClient.company} · ` : ''}Dedicated PayGenie Invoicing Thread
                     </p>
                   </div>
@@ -1250,7 +1220,7 @@ function MerchantWorkspace() {
                             setSelectedInvoice(availableInvoices[0]);
                             setIsModalOpen(true);
                           }}
-                          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] px-3.5 py-1.5 rounded-xl shadow-sm transition active:scale-95"
+                          className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#003087] hover:bg-[#0070e0] px-3.5 py-1.5 rounded-xl shadow-2xs transition"
                           title="View & manage client invoice"
                         >
                           <Receipt className="w-3.5 h-3.5" />
@@ -1274,7 +1244,7 @@ function MerchantWorkspace() {
                             setIsClientInvoicesDropdownOpen(!isClientInvoicesDropdownOpen);
                             setInvoiceDropdownSearch('');
                           }}
-                          className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] px-3.5 py-1.5 rounded-xl shadow-sm transition border border-blue-400/30"
+                          className="cursor-pointer inline-flex items-center gap-2 text-xs font-bold text-white bg-[#003087] hover:bg-[#002466] px-3.5 py-1.5 rounded-xl shadow-2xs transition border border-[#003087]"
                         >
                           <Receipt className="w-3.5 h-3.5 text-blue-200" />
                           <span>Invoices ({availableInvoices.length})</span>
@@ -1294,27 +1264,19 @@ function MerchantWorkspace() {
                               }}
                             />
 
-                            <div className={`absolute right-0 mt-2 w-80 rounded-2xl shadow-2xl z-40 py-2 animate-scale-up overflow-hidden border ${
-                              theme === 'dark'
-                                ? 'bg-[#0e1626] border-white/10 text-white'
-                                : 'bg-white border-slate-200 text-[#001435]'
-                            }`}>
-                              <div className={`px-3.5 py-1.5 border-b flex items-center justify-between ${
-                                theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50/80'
-                              }`}>
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-40 py-2 animate-scale-up overflow-hidden">
+                              <div className="px-3.5 py-1.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                                   {activeClient.name} Invoices
                                 </span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  theme === 'dark' ? 'bg-blue-500/20 text-blue-300' : 'bg-blue-100/70 text-[#003087]'
-                                }`}>
+                                <span className="text-[10px] font-bold bg-blue-100/70 text-[#003087] px-2 py-0.5 rounded-full">
                                   {availableInvoices.length} Total
                                 </span>
                               </div>
 
                               {/* Search Box inside Dropdown if 3 or more invoices */}
                               {availableInvoices.length >= 3 && (
-                                <div className={`p-2 border-b ${theme === 'dark' ? 'border-white/10 bg-[#0e1626]' : 'border-slate-100 bg-white'}`}>
+                                <div className="p-2 border-b border-slate-100 bg-white">
                                   <div className="relative">
                                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                                     <input
@@ -1323,18 +1285,14 @@ function MerchantWorkspace() {
                                       value={invoiceDropdownSearch}
                                       onChange={(e) => setInvoiceDropdownSearch(e.target.value)}
                                       placeholder="Search invoice # or amount..."
-                                      className={`w-full rounded-lg pl-8 pr-2.5 py-1 text-xs focus:outline-none ${
-                                        theme === 'dark'
-                                          ? 'bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:border-blue-400'
-                                          : 'bg-slate-50 border border-slate-200 text-slate-900 focus:border-[#0070ba]'
-                                      }`}
+                                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-2.5 py-1 text-xs text-slate-900 focus:outline-none focus:border-[#0070ba]"
                                     />
                                   </div>
                                 </div>
                               )}
 
                               {/* Scrollable List with Max Height */}
-                              <div className={`max-h-64 overflow-y-auto custom-scrollbar divide-y ${theme === 'dark' ? 'divide-white/5' : 'divide-slate-100'}`}>
+                              <div className="max-h-64 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
                                 {filteredDropdownInvoices.length === 0 ? (
                                   <div className="p-4 text-center text-xs text-slate-400">
                                     No invoices match &ldquo;{invoiceDropdownSearch}&rdquo;
@@ -1350,36 +1308,28 @@ function MerchantWorkspace() {
                                         setIsClientInvoicesDropdownOpen(false);
                                         setInvoiceDropdownSearch('');
                                       }}
-                                      className={`w-full text-left p-3 transition flex items-center justify-between gap-2 cursor-pointer group ${
-                                        theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-blue-50/70'
-                                      }`}
+                                      className="w-full text-left p-3 hover:bg-blue-50/70 transition flex items-center justify-between gap-2 cursor-pointer group"
                                     >
                                       <div className="truncate">
-                                        <p className={`font-mono text-xs font-bold flex items-center gap-1.5 ${
-                                          theme === 'dark' ? 'text-blue-300 group-hover:text-blue-200' : 'text-[#003087] group-hover:text-[#0070ba]'
-                                        }`}>
-                                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                                        <p className="font-mono text-xs font-bold text-[#003087] group-hover:text-[#0070ba] flex items-center gap-1.5">
+                                          <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#0070ba]" />
                                           <span>{inv.invoiceNumber}</span>
                                         </p>
-                                        <p className={`text-[11px] mt-0.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
                                           Due: {inv.dueDate || 'Upon receipt'}
                                         </p>
                                       </div>
 
                                       <div className="text-right shrink-0">
-                                        <p className={`font-bold text-xs ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>
+                                        <p className="font-bold text-xs text-[#001435]">
                                           ${inv.totalAmount.toFixed(2)}
                                         </p>
                                         {inv.status === 'PAID' ? (
-                                          <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
-                                            theme === 'dark' ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                          }`}>
+                                          <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
                                             PAID
                                           </span>
                                         ) : (
-                                          <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded border ${
-                                            theme === 'dark' ? 'text-amber-300 bg-amber-500/10 border-amber-400/20' : 'text-amber-700 bg-amber-50 border-amber-200'
-                                          }`}>
+                                          <span className="text-[9.5px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
                                             PENDING
                                           </span>
                                         )}
@@ -1398,11 +1348,7 @@ function MerchantWorkspace() {
                   <button
                     type="button"
                     onClick={() => handleOpenEditClientModal(activeClient)}
-                    className={`cursor-pointer inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border transition shadow-2xs ${
-                      theme === 'dark'
-                        ? 'bg-white/5 hover:bg-white/10 text-slate-200 border-white/10'
-                        : 'bg-white hover:bg-blue-50 text-[#003087] border-blue-200'
-                    }`}
+                    className="cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-[#003087] bg-white hover:bg-blue-50 px-3 py-1.5 rounded-xl border border-blue-200 shadow-2xs transition"
                     title="Edit client details or WhatsApp number"
                   >
                     <Edit3 className="w-3.5 h-3.5 text-[#0070ba]" />
@@ -1412,7 +1358,7 @@ function MerchantWorkspace() {
                   <button
                     type="button"
                     onClick={() => handleDeleteClient(activeClient.id)}
-                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-500/10 p-2 rounded-xl transition"
+                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl border border-transparent hover:border-red-200 transition"
                     title={`Delete client ${activeClient.name}`}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1421,7 +1367,7 @@ function MerchantWorkspace() {
                   <button
                     type="button"
                     onClick={handleClearEntireChat}
-                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 p-2 rounded-xl transition"
+                    className="cursor-pointer text-xs font-bold text-slate-400 hover:text-amber-600 hover:bg-amber-50 p-2 rounded-xl border border-transparent hover:border-amber-200 transition"
                     title="Clear entire chat history"
                   >
                     <RotateCcw className="w-4 h-4" />
@@ -1430,9 +1376,7 @@ function MerchantWorkspace() {
               </div>
 
               {/* Chat Message Scrollable Container */}
-              <div className={`flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5 min-h-0 flex flex-col transition-colors duration-300 ${
-                theme === 'dark' ? 'bg-[#060a12]/50' : 'bg-[#fcfdfe]'
-              }`}>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5 bg-[#fcfdfe] min-h-0 flex flex-col">
                 {!isStorageLoaded ? (
                   /* Initial hydration loader — prevents flash of empty hero on refresh */
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-3 my-auto">
@@ -1442,25 +1386,22 @@ function MerchantWorkspace() {
                 ) : (activeClient.messages || []).length === 0 ? (
                   /* Empty state: ChatGPT-style clean centered hero (disappears once user sends a message) */
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4 animate-fade-in my-auto">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border ${
-                      theme === 'dark'
-                        ? 'bg-blue-500/10 border-blue-400/20 text-blue-400'
-                        : 'bg-blue-50 border-blue-200/80 text-[#003087]'
-                    }`}>
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center text-[#003087] shadow-sm">
                       <Sparkles className="w-7 h-7 text-[#0070ba]" />
                     </div>
 
                     <div className="space-y-1.5 max-w-lg">
-                      <h2 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${
-                        theme === 'dark' ? 'text-white' : 'text-[#001435]'
-                      }`}>
+                      <h2 className="text-2xl sm:text-3xl font-extrabold text-[#001435] tracking-tight">
                         {(() => {
                           const hour = new Date().getHours();
                           const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-                          return `${timeGreeting}! Ready to bill ${activeClient.name}?`;
+                          const clientLabel = activeClient.company 
+                            ? `${activeClient.name} (${activeClient.company})`
+                            : activeClient.name;
+                          return `${timeGreeting}! Ready to bill ${clientLabel}?`;
                         })()}
                       </h2>
-                      <p className={`text-sm font-medium leading-relaxed ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      <p className="text-sm text-slate-500 font-medium leading-relaxed">
                         Chat naturally in any preferred language or phrasing — PayGenie drafts, verifies and settles invoices seamlessly.
                       </p>
                     </div>
@@ -1478,11 +1419,7 @@ function MerchantWorkspace() {
                           onClick={() => {
                             setUserInput(hint);
                           }}
-                          className={`cursor-pointer text-xs font-semibold px-3.5 py-1.5 rounded-full transition shadow-sm border ${
-                            theme === 'dark'
-                              ? 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
-                              : 'bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-[#003087] border-slate-200 hover:border-blue-300'
-                          }`}
+                          className="cursor-pointer text-xs font-semibold px-3.5 py-1.5 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-[#003087] border border-slate-200 hover:border-blue-300 transition shadow-2xs"
                         >
                           &ldquo;{hint}&rdquo;
                         </button>
@@ -1500,10 +1437,8 @@ function MerchantWorkspace() {
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold shadow-2xs ${
                         msg.role === 'user'
-                          ? 'bg-[#0070ba] text-white'
-                          : theme === 'dark'
-                            ? 'bg-white/10 text-blue-300 border border-white/10'
-                            : 'bg-white text-[#0070ba] border border-slate-200'
+                          ? 'bg-[#003087] text-white'
+                          : 'bg-white text-[#0070ba] border border-slate-200'
                       }`}
                     >
                       {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-5 h-5" />}
@@ -1513,24 +1448,20 @@ function MerchantWorkspace() {
                       <div
                         className={`p-4 rounded-2xl text-base leading-relaxed relative ${
                           msg.role === 'user'
-                            ? 'bg-gradient-to-r from-blue-600 to-[#0070ba] text-white font-medium rounded-tr-none shadow-md'
-                            : theme === 'dark'
-                              ? 'bg-white/[0.04] text-slate-100 border border-white/10 backdrop-blur-md rounded-tl-none font-medium shadow-lg'
-                              : 'bg-white text-[#001435] border border-slate-200 shadow-2xs rounded-tl-none font-semibold'
+                            ? 'bg-[#003087] text-white font-medium rounded-tr-none'
+                            : 'bg-white text-[#001435] border border-slate-200 shadow-2xs rounded-tl-none font-semibold'
                         }`}
                       >
                         <p className="whitespace-pre-line">{msg.content}</p>
 
-                        {/* Hover Quick Action Buttons */}
+                        {/* Hover Quick Action Buttons: Revert & Delete (No Edit button, clean UX) */}
                         <div className={`opacity-0 group-hover/msg:opacity-100 transition-opacity absolute top-2 ${
                           msg.role === 'user' ? '-left-16' : '-right-16'
-                        } flex items-center gap-1 border shadow-xs rounded-lg p-0.5 z-10 ${
-                          theme === 'dark' ? 'bg-[#0e1626] border-white/10' : 'bg-white border-slate-200'
-                        }`}>
+                        } flex items-center gap-1 bg-white border border-slate-200 shadow-xs rounded-lg p-0.5 z-10`}>
                           <button
                             type="button"
                             onClick={() => handleRevertToMessage(msg.id)}
-                            className="p-1 text-slate-400 hover:text-[#0070ba] hover:bg-blue-500/10 rounded transition cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-[#0070ba] hover:bg-blue-50 rounded transition cursor-pointer"
                             title="Revert / Rollback chat to this point"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
@@ -1538,7 +1469,7 @@ function MerchantWorkspace() {
                           <button
                             type="button"
                             onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded transition cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition cursor-pointer"
                             title="Delete this message"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1548,27 +1479,17 @@ function MerchantWorkspace() {
 
                       {/* Interactive Invoice Draft Action Pill */}
                       {msg.invoiceDraft && (
-                        <div className={`p-4 rounded-2xl space-y-3.5 animate-scale-up border transition-all ${
-                          theme === 'dark'
-                            ? 'bg-gradient-to-br from-blue-950/40 via-slate-900/40 to-indigo-950/40 border-blue-500/30 backdrop-blur-xl shadow-xl'
-                            : 'bg-white border-2 border-blue-200 shadow-sm'
-                        }`}>
-                          <div className={`flex items-center justify-between pb-2.5 border-b ${
-                            theme === 'dark' ? 'border-white/10' : 'border-slate-100'
-                          }`}>
+                        <div className="bg-white border-2 border-blue-200 p-4 rounded-2xl shadow-sm space-y-3.5 animate-scale-up">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                             <div className="flex items-center gap-2">
-                              <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-lg border ${
-                                theme === 'dark'
-                                  ? 'text-blue-300 bg-blue-500/20 border-blue-400/30'
-                                  : 'text-[#003087] bg-blue-50 border-blue-200'
-                              }`}>
+                              <span className="font-mono text-xs font-bold text-[#003087] bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
                                 {msg.invoiceDraft.invoiceNumber}
                               </span>
-                              <span className={`text-xs font-bold ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                              <span className="text-xs font-bold text-slate-500">
                                 for {msg.invoiceDraft.clientName}
                               </span>
                             </div>
-                            <span className={`text-base font-black ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>
+                            <span className="text-base font-black text-[#001435]">
                               ${msg.invoiceDraft.totalAmount.toFixed(2)}{' '}
                               <span className="text-xs font-normal text-slate-400">
                                 {msg.invoiceDraft.currency}
@@ -1584,30 +1505,22 @@ function MerchantWorkspace() {
                                 setIsModalPreviewOnly(true);
                                 setIsModalOpen(true);
                               }}
-                              className={`cursor-pointer inline-flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl transition border ${
-                                theme === 'dark'
-                                  ? 'text-blue-300 bg-white/5 hover:bg-white/10 border-white/10'
-                                  : 'text-[#003087] bg-blue-50 hover:bg-blue-100 border-blue-200'
-                              }`}
+                              className="cursor-pointer inline-flex items-center gap-1.5 text-sm font-bold text-[#003087] bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl border border-blue-200 transition"
                             >
                               <Eye className="w-4 h-4 text-[#0070ba]" />
                               <span>Preview Invoice</span>
                             </button>
 
                             {msg.isConfirmed ? (
-                              <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border ${
-                                theme === 'dark'
-                                  ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20'
-                                  : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                              }`}>
-                                <Check className="w-4 h-4 text-emerald-400" />
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200">
+                                <Check className="w-4 h-4 text-emerald-600" />
                                 <span>Confirmed in Ledger</span>
                               </span>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => handleConfirmInvoice(msg.invoiceDraft!, msg.id)}
-                                className="cursor-pointer inline-flex items-center gap-1.5 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] py-2 px-4 rounded-xl shadow-md transition active:scale-95"
+                                className="pp-button-primary !py-2 !px-4 !text-sm flex items-center gap-1.5 shadow-sm"
                               >
                                 <Check className="w-4 h-4" />
                                 <span>Confirm & Issue Invoice</span>
@@ -1627,14 +1540,10 @@ function MerchantWorkspace() {
 
                 {generatingClientId === activeClient.id && (
                   <div className="flex gap-3.5 mr-auto">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center border ${
-                      theme === 'dark' ? 'bg-white/5 text-blue-400 border-white/10' : 'bg-white text-[#0070ba] border-slate-200'
-                    }`}>
+                    <div className="w-9 h-9 rounded-full bg-white text-[#0070ba] border border-slate-200 flex items-center justify-center">
                       <RefreshCw className="w-4 h-4 animate-spin" />
                     </div>
-                    <div className={`p-4 rounded-2xl rounded-tl-none text-sm font-semibold flex items-center gap-2 border shadow-sm ${
-                      theme === 'dark' ? 'bg-white/5 text-slate-300 border-white/10' : 'bg-white text-slate-500 border-slate-200'
-                    }`}>
+                    <div className="p-4 bg-white border border-slate-200 rounded-2xl rounded-tl-none text-sm text-slate-500 font-semibold flex items-center gap-2 shadow-2xs">
                       <span>PayGenie thinking & calculating for {activeClient.name}...</span>
                     </div>
                   </div>
@@ -1644,14 +1553,10 @@ function MerchantWorkspace() {
               </div>
 
               {/* Chat Input & Template Bar */}
-              <div className={`p-4 border-t shrink-0 space-y-3 transition-colors duration-300 ${
-                theme === 'dark' ? 'border-white/10 bg-[#090e17]/80 backdrop-blur-xl' : 'border-slate-200 bg-white'
-              }`}>
+              <div className="p-4 border-t border-slate-200 bg-white shrink-0 space-y-3">
                 {/* One-Click Quick Templates Carousel */}
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
-                  <span className={`font-bold uppercase tracking-wider shrink-0 text-[10px] flex items-center gap-1 ${
-                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                  }`}>
+                <div id="onboarding-templates" className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+                  <span className="font-bold text-slate-500 uppercase tracking-wider shrink-0 text-[10px] flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-[#0070ba]" />
                     <span>Templates:</span>
                   </span>
@@ -1667,13 +1572,9 @@ function MerchantWorkspace() {
                         setUserInput(tmpl.content);
                         toast.info(`Loaded "${tmpl.name}" template into input.`);
                       }}
-                      className={`cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold transition border ${
-                        theme === 'dark'
-                          ? 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
-                          : 'bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-[#003087] border-slate-200 hover:border-blue-300'
-                      }`}
+                      className="cursor-pointer shrink-0 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 hover:bg-blue-50 text-slate-700 hover:text-[#003087] border border-slate-200 hover:border-blue-300 font-semibold transition shadow-2xs"
                     >
-                      <FileCode className="w-3 h-3 text-emerald-400" />
+                      <FileCode className="w-3 h-3 text-emerald-600" />
                       <span>{tmpl.name}</span>
                     </button>
                   ))}
@@ -1684,20 +1585,17 @@ function MerchantWorkspace() {
                       setTemplateManagerInitialType('invoice');
                       setIsTemplateManagerOpen(true);
                     }}
-                    className={`cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-xs border transition ${
-                      theme === 'dark'
-                        ? 'bg-white/10 hover:bg-white/20 text-slate-200 border-white/10'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
-                    }`}
+                    className="cursor-pointer shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition"
                     title="Manage / Add / Edit Invoice Templates"
                   >
-                    <Plus className="w-3 h-3 text-blue-400" />
+                    <Plus className="w-3 h-3 text-[#0070ba]" />
                     <span>Manage</span>
                   </button>
                 </div>
 
                 {/* Input Textarea Form (Enter sends, Shift+Enter new line) */}
                 <form
+                  id="onboarding-chat-input"
                   onSubmit={(e) => {
                     e.preventDefault();
                     handleSendMessage();
@@ -1717,11 +1615,7 @@ function MerchantWorkspace() {
                         }
                       }}
                       placeholder={`Tell PayGenie what to bill ${activeClient.name}... (Press Enter to send, Shift + Enter for new line)`}
-                      className={`w-full rounded-2xl px-5 py-3 text-base font-medium resize-y min-h-[58px] max-h-48 leading-relaxed custom-scrollbar transition-all ${
-                        theme === 'dark'
-                          ? 'bg-white/[0.04] border border-white/10 text-white placeholder-slate-500 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30'
-                          : 'bg-[#f8fafc] border border-slate-300 text-[#001435] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20'
-                      }`}
+                      className="w-full bg-[#f8fafc] border border-slate-300 rounded-2xl px-5 py-3 text-base text-[#001435] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0070ba] focus:ring-2 focus:ring-[#0070ba]/20 transition font-medium resize-y min-h-[58px] max-h-48 leading-relaxed custom-scrollbar"
                     />
                   </div>
 
@@ -1729,7 +1623,7 @@ function MerchantWorkspace() {
                     <button
                       type="submit"
                       disabled={generatingClientId === activeClient.id || !userInput.trim()}
-                      className="cursor-pointer inline-flex items-center justify-center p-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] text-white shadow-lg transition active:scale-95 disabled:opacity-40"
+                      className="pp-button-primary !py-3 !px-6 !text-base shadow-sm disabled:opacity-50"
                       title="Send Message (Enter)"
                     >
                       <Send className="w-5 h-5" />
@@ -1747,17 +1641,15 @@ function MerchantWorkspace() {
             /* MASTER SETTLEMENT LEDGER (All Clients)  */
             /* ======================================= */
             <div className="p-6 sm:p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar min-h-0 animate-fade-in">
-              <div className={`flex items-center justify-between pb-4 border-b ${
-                theme === 'dark' ? 'border-white/10' : 'border-slate-200'
-              }`}>
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200">
                 <div>
-                  <h2 className={`text-2xl font-black ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>Master Settlement Ledger</h2>
-                  <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>All client invoices, payment links & real-time settlement records</p>
+                  <h2 className="text-2xl font-black text-[#001435]">Master Settlement Ledger</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">All client invoices, payment links & real-time settlement records</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveTab('chat')}
-                  className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-[#0070ba] hover:from-blue-500 hover:to-[#0070ba] py-2 px-5 rounded-full shadow-md transition active:scale-95"
+                  className="pp-button-primary !py-2 !px-5 !text-xs flex items-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>+ Bill via Chat</span>
@@ -1766,17 +1658,15 @@ function MerchantWorkspace() {
 
               {allInvoices.length === 0 ? (
                 <div className="text-center py-20 text-slate-400 text-sm space-y-3">
-                  <FileSpreadsheet className="w-12 h-12 text-slate-400/50 mx-auto" />
-                  <p className={`font-bold text-base ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>No invoices generated yet</p>
-                  <p className="text-slate-400 text-xs">Pick a client from the left roster and chat with PayGenie to create your first invoice.</p>
+                  <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto" />
+                  <p className="font-bold text-base text-slate-700">No invoices generated yet</p>
+                  <p className="text-slate-500 text-xs">Pick a client from the left roster and chat with PayGenie to create your first invoice.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className={`border-b uppercase text-xs tracking-wider ${
-                        theme === 'dark' ? 'border-white/10 text-slate-400' : 'border-slate-200 text-slate-500'
-                      }`}>
+                      <tr className="border-b-2 border-slate-200 text-slate-500 uppercase text-xs tracking-wider">
                         <th className="py-3 px-3 font-bold">Invoice #</th>
                         <th className="py-3 px-3 font-bold">Client & Email</th>
                         <th className="py-3 px-3 font-bold">Date & Due</th>
@@ -1785,10 +1675,10 @@ function MerchantWorkspace() {
                         <th className="py-3 px-3 text-right font-bold">Action</th>
                       </tr>
                     </thead>
-                    <tbody className={`divide-y ${theme === 'dark' ? 'divide-white/5 text-slate-200' : 'divide-slate-100 text-slate-800'}`}>
+                    <tbody className="divide-y divide-slate-100 text-slate-800">
                       {allInvoices.map((inv, idx) => (
-                        <tr key={idx} className={`transition ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50/80'}`}>
-                          <td className="py-4 px-3 font-mono font-bold text-sm text-[#0070ba]">
+                        <tr key={idx} className="hover:bg-slate-50/80 transition">
+                          <td className="py-4 px-3 font-mono font-bold text-sm text-[#003087]">
                             {inv.invoiceNumber}
                             {inv.paymentId && (
                               <span className="block font-sans text-[11px] text-slate-400 font-normal">
@@ -1797,29 +1687,25 @@ function MerchantWorkspace() {
                             )}
                           </td>
                           <td className="py-4 px-3">
-                            <p className={`font-bold text-sm ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>{inv.clientName}</p>
-                            <p className="text-slate-400 text-xs">{inv.clientEmail}</p>
+                            <p className="text-[#001435] font-bold text-sm">{inv.clientName}</p>
+                            <p className="text-slate-500 text-xs">{inv.clientEmail}</p>
                           </td>
-                          <td className={`py-4 px-3 text-xs ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <td className="py-4 px-3 text-xs text-slate-600">
                             <span>{inv.date}</span>
                             <span className="block text-slate-400">Due: {inv.dueDate}</span>
                           </td>
-                          <td className={`py-4 px-3 text-right font-black text-sm ${theme === 'dark' ? 'text-white' : 'text-[#001435]'}`}>
+                          <td className="py-4 px-3 text-right font-black text-sm text-[#001435]">
                             ${inv.totalAmount.toFixed(2)}
                             <span className="text-xs text-slate-400 block font-normal">{inv.currency}</span>
                           </td>
                           <td className="py-4 px-3 text-center">
                             {inv.status === 'PAID' ? (
-                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border ${
-                                theme === 'dark' ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/20' : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                              }`}>
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> PAID
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> PAID
                               </span>
                             ) : (
-                              <span className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border ${
-                                theme === 'dark' ? 'text-amber-300 bg-amber-500/10 border-amber-400/20' : 'text-amber-700 bg-amber-50 border-amber-200'
-                              }`}>
-                                <Clock className="w-3.5 h-3.5 text-amber-500" /> AWAITING
+                              <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                <Clock className="w-3.5 h-3.5" /> AWAITING
                               </span>
                             )}
                           </td>
@@ -1832,11 +1718,7 @@ function MerchantWorkspace() {
                                   setIsModalPreviewOnly(false);
                                   setIsModalOpen(true);
                                 }}
-                                className={`cursor-pointer text-xs font-bold px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1 shadow-2xs ${
-                                  theme === 'dark'
-                                    ? 'text-blue-300 bg-white/5 hover:bg-white/10 border-white/10'
-                                    : 'text-[#0070ba] bg-blue-50 hover:bg-blue-100 border-blue-200'
-                                }`}
+                                className="cursor-pointer text-xs font-bold text-[#0070ba] hover:bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200 transition inline-flex items-center gap-1 shadow-2xs"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>Inspect & Share</span>
@@ -1844,7 +1726,7 @@ function MerchantWorkspace() {
                               <button
                                 type="button"
                                 onClick={() => handleDeleteLedgerItem(inv.invoiceNumber)}
-                                className="cursor-pointer p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition"
+                                className="cursor-pointer p-1.5 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
                                 title="Delete from Ledger"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -2030,6 +1912,12 @@ function MerchantWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Interactive Step-by-Step Guided Spotlight Tour (First Time User) */}
+      <OnboardingTour
+        forceOpen={forceTourOpen}
+        onClose={() => setForceTourOpen(false)}
+      />
 
     </div>
   );
