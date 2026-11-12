@@ -4,8 +4,13 @@ import { PayPalProvider } from "@/components/PayPalProvider";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
-  title: "PayGenie — Intelligent Invoicing & Instant PayPal Settlement",
-  description: "Generate structured, ready-to-pay invoices from natural language using Gemini AI and settle instantly via PayPal Sandbox.",
+  title: "PayGenie AI — Autonomous Invoicing & Instant PayPal Settlement",
+  description: "AI-powered natural language invoicing engine with instant PayPal settlement for freelancers and modern businesses.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

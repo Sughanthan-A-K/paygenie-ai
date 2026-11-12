@@ -61,6 +61,7 @@ const BILLING_TEMPLATES = [
 import ClientPayPortal from '@/components/ClientPayPortal';
 import InvoiceModal from '@/components/InvoiceModal';
 import MerchantProfileModal from '@/components/MerchantProfileModal';
+import { PayGenieLogo } from '@/components/PayGenieLogo';
 import { InvoiceData, ClientProfile, ChatMessage, MerchantProfile } from '@/types/invoice';
 import { toast } from 'sonner';
 
@@ -611,18 +612,10 @@ function MerchantWorkspace() {
         <div className="w-full px-4 sm:px-8 h-18 flex items-center justify-between">
           
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-[#003087] flex items-center justify-center text-white font-black text-xl shadow-sm tracking-tighter">
-              P
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xl text-[#001435] tracking-tight">PayGenie</span>
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-[#003087] border border-blue-200">
-                  Client Hub & Billing Copilot
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium hidden sm:block">Conversational PayPal Billing & Real-Time Settlement</p>
-            </div>
+            <PayGenieLogo size={38} textColor="text-[#001435]" subtextColor="text-slate-500" />
+            <span className="hidden lg:inline-block text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-blue-50 text-[#003087] border border-blue-200/80">
+              Client Hub & Billing Copilot
+            </span>
           </div>
 
           {/* Tab Navigation & Merchant Profile Trigger */}

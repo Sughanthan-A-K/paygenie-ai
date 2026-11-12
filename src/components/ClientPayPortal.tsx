@@ -15,6 +15,7 @@ import confetti from 'canvas-confetti';
 import { InvoiceData } from '@/types/invoice';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { PayGenieLogo } from '@/components/PayGenieLogo';
 
 export default function ClientPayPortal() {
   const searchParams = useSearchParams();
@@ -194,16 +195,17 @@ export default function ClientPayPortal() {
             </div>
           </div>
 
-          {/* Browser Address Bar */}
-          <div className="px-4 py-2.5 bg-[#f5f7fa] border-b border-slate-200 flex items-center justify-between shrink-0">
+          {/* Browser Address Bar with Official PayGenie Logo */}
+          <div className="px-4 py-2 bg-[#f5f7fa] border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-[#003087] text-white flex items-center justify-center font-black text-xs">
-                P
-              </div>
+              <PayGenieLogo size={28} showText={false} />
               <div className="leading-tight">
-                <span className="font-extrabold text-xs tracking-tight text-[#001435] block">
-                  PayPal <span className="text-[#0070ba]">Checkout</span>
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold text-xs tracking-tight text-[#001435]">
+                    PayGenie <span className="text-[#0070ba]">AI</span>
+                  </span>
+                  <span className="text-[9px] font-semibold text-slate-400">· PayPal</span>
+                </div>
                 <span className="text-[10px] text-slate-500 font-medium truncate max-w-[170px] block">
                   paygenie.ai/?invoice={invoice.invoiceNumber}
                 </span>
@@ -326,10 +328,28 @@ export default function ClientPayPortal() {
                   </div>
                 </div>
               ) : (
-                <PayPalButtonsContainer
-                  invoice={invoice}
-                  onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
-                />
+                <div className="space-y-2.5">
+                  <PayPalButtonsContainer
+                    invoice={invoice}
+                    onSuccess={(paymentId) => handlePaymentSuccess(paymentId)}
+                  />
+
+                  {/* ⚡ Demo Quick Settle Trigger (Video Recording & Live Hackathon Presentation Secret Weapon) */}
+                  <div className="pt-2 border-t border-dashed border-slate-200 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handlePaymentSuccess(`DEMO-SETTLE-${Math.floor(100000 + Math.random() * 900000)}`)}
+                      className="cursor-pointer inline-flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-full text-[11px] font-bold text-[#003087] bg-blue-50/80 hover:bg-blue-100/80 border border-blue-200 transition shadow-2xs group"
+                      title="Instantly simulate approved PayPal payment for video demonstrations"
+                    >
+                      <span className="text-amber-500 group-hover:scale-110 transition-transform">⚡</span>
+                      <span>Demo Mode: Instant Quick Settle</span>
+                    </button>
+                    <span className="text-[9.5px] text-slate-400 block mt-1">
+                      Simulates real-time PayPal webhook capture & live balance update
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
 
